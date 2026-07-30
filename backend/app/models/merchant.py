@@ -11,4 +11,5 @@ class Merchant(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     raw_name: Mapped[str]
+    normalized_name: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

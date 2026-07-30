@@ -12,6 +12,7 @@ rapidfuzz
 statsmodels
 pandas
 numpy
+matplotlib
 apscheduler
 sendgrid
 plaid-python
