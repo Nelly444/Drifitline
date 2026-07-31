@@ -18,6 +18,7 @@ from sklearn.preprocessing import StandardScaler
 from app.services.clustering import EPS, MIN_GROUP_SIZE, MIN_SAMPLES, build_group_features
 from app.services.merchant_matching import normalize_merchants
 from app.services.noise import inject_noise
+from app.services.scoring import MIN_HISTORY, score_subscription_history
 
 SUBSCRIPTION_MERCHANTS = [
     "Netflix Inc", "Spotify Inc", "Adobe Inc", "New York Times Inc", "Planet Fitness Inc", "Dropbox Inc",
@@ -31,6 +32,10 @@ class SyntheticTxn:
     amount: float
     raw_merchant_name: str
     true_subscription_id: int | None
+    true_is_drift: bool = False
+    expected_amount: float | None = None
+    deviation_pct: float | None = None
+    is_drift: bool = False
 
 
 def generate_dataset(rng: random.Random, n_subscriptions=6, occurrences_per_sub=10, n_noise=40) -> list[SyntheticTxn]:
@@ -47,10 +52,11 @@ def generate_dataset(rng: random.Random, n_subscriptions=6, occurrences_per_sub=
             jitter_days = rng.randint(-2, 2)
             txn_date = start + timedelta(days=interval * i + jitter_days)
             amount = base_amount
-            if i == occurrences_per_sub - 1:
+            is_hike = i == occurrences_per_sub - 1
+            if is_hike:
                 amount = round(base_amount * 1.15, 2)  # late price hike, still the same subscription
             raw_name = inject_noise(merchant, rng=rng)
-            txns.append(SyntheticTxn(txn_date, amount, raw_name, sub_id))
+            txns.append(SyntheticTxn(txn_date, amount, raw_name, sub_id, true_is_drift=is_hike))
 
     for _ in range(n_noise):
         merchant = rng.choice(ONE_OFF_MERCHANTS)
@@ -86,6 +92,34 @@ def run_pipeline(txns: list[SyntheticTxn]) -> dict[int, tuple | None]:
                 predicted[id(t)] = None if label == -1 else (name, int(label))
 
     return predicted
+
+
+def run_forecasting(txns: list[SyntheticTxn], predicted: dict[int, tuple | None]) -> None:
+    """Mutates each scoreable txn's .expected_amount/.deviation_pct/.is_drift in place,
+    using the exact same walk-forward scorer the real DB pipeline uses."""
+    clusters: dict[tuple, list[SyntheticTxn]] = defaultdict(list)
+    for t in txns:
+        key = predicted[id(t)]
+        if key is not None:
+            clusters[key].append(t)
+
+    for members in clusters.values():
+        if len(members) < MIN_HISTORY + 1:
+            continue
+        sorted_members = sorted(members, key=lambda t: t.posted_date)
+        score_subscription_history(sorted_members)
+
+
+def evaluate_drift(txns: list[SyntheticTxn]) -> dict:
+    tp = sum(1 for t in txns if t.true_is_drift and t.is_drift)
+    fp = sum(1 for t in txns if not t.true_is_drift and t.is_drift)
+    fn = sum(1 for t in txns if t.true_is_drift and not t.is_drift)
+
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+
+    return {"precision": precision, "recall": recall, "f1": f1, "true_positives": tp, "false_positives": fp, "false_negatives": fn}
 
 
 def evaluate(txns: list[SyntheticTxn], predicted: dict[int, tuple | None]) -> dict:
@@ -132,9 +166,16 @@ def main():
     report = evaluate(txns, predicted)
 
     print("=== Synthetic ground-truth evaluation (NOT real-world validated - see PRD Known Limitations) ===")
+    print("--- Clustering ---")
     print(f"Adjusted Rand Index: {report['adjusted_rand_index']:.3f}")
     print(f"True subscriptions correctly identified as one cluster: {report['correctly_identified']} / {report['true_subscriptions']}")
     print(f"Predicted clusters that wrongly merged 2+ distinct true subscriptions: {report['false_merges']}")
+
+    run_forecasting(txns, predicted)
+    drift_report = evaluate_drift(txns)
+    print("--- Drift detection (price-hike recall) ---")
+    print(f"Precision: {drift_report['precision']:.3f}  Recall: {drift_report['recall']:.3f}  F1: {drift_report['f1']:.3f}")
+    print(f"TP={drift_report['true_positives']} FP={drift_report['false_positives']} FN={drift_report['false_negatives']}")
 
 
 if __name__ == "__main__":

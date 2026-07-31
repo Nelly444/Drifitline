@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, func
+from sqlalchemy import Date, DateTime, ForeignKey, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -11,4 +12,6 @@ class Subscription(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"))
+    forecast_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    forecast_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

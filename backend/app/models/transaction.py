@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, func
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Numeric, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -16,4 +16,7 @@ class Transaction(Base):
     subscription_id: Mapped[int | None] = mapped_column(ForeignKey("subscriptions.id"))
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     posted_date: Mapped[date] = mapped_column(Date)
+    expected_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    deviation_pct: Mapped[float | None] = mapped_column(Float)
+    is_drift: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
