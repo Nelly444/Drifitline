@@ -4,6 +4,7 @@ interface DriftMeterProps {
   deviationPct: number | null;
   isDrift: boolean;
   variant?: "full" | "compact";
+  size?: "normal" | "large";
 }
 
 const MOSS_ZONE_START = 40;
@@ -18,11 +19,20 @@ function formatAmount(amount: number): string {
   return amount < 0 ? `-$${Math.abs(amount).toFixed(2)}` : `$${amount.toFixed(2)}`;
 }
 
-export function DriftMeter({ expectedAmount, actualAmount, deviationPct, isDrift, variant = "full" }: DriftMeterProps) {
+export function DriftMeter({
+  expectedAmount,
+  actualAmount,
+  deviationPct,
+  isDrift,
+  variant = "full",
+  size = "normal",
+}: DriftMeterProps) {
   const hasScore = deviationPct !== null;
   const position = hasScore ? clampPosition(deviationPct) : 50;
   const markerColor = !hasScore ? "bg-slate" : isDrift ? "bg-rust" : "bg-moss";
   const textColor = !hasScore ? "text-slate" : isDrift ? "text-rust" : "text-moss";
+  const trackHeight = size === "large" ? "h-2" : "h-1";
+  const markerSize = size === "large" ? "h-5 w-5" : "h-3 w-3";
 
   let rustZone: { left: number; width: number } | null = null;
   if (hasScore && isDrift) {
@@ -35,7 +45,7 @@ export function DriftMeter({ expectedAmount, actualAmount, deviationPct, isDrift
 
   return (
     <div className="w-full">
-      <div className="relative h-1 w-full rounded-pill bg-hairline">
+      <div className={`relative w-full rounded-pill bg-hairline ${trackHeight}`}>
         <div
           className="absolute inset-y-0 rounded-pill bg-moss-wash"
           style={{ left: `${MOSS_ZONE_START}%`, width: `${MOSS_ZONE_END - MOSS_ZONE_START}%` }}
@@ -47,7 +57,7 @@ export function DriftMeter({ expectedAmount, actualAmount, deviationPct, isDrift
           />
         )}
         <div
-          className={`absolute top-1/2 h-3 w-3 -translate-y-1/2 -translate-x-1/2 rounded-full ${markerColor}`}
+          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full ${markerColor} ${markerSize}`}
           style={{ left: `${position}%` }}
         />
       </div>
