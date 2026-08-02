@@ -4,16 +4,33 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth import current_active_user
 from app.db import get_db
-from app.models import Merchant, Subscription, Transaction
+from app.models import Merchant, Subscription, Transaction, User
 from app.services.serializers import serialize_transaction
+from app.services.tenancy import plaid_item_ids_for_user
 
 router = APIRouter(tags=["dashboard"])
 
 
+def _empty_sparkline() -> list[dict]:
+    today = date.today()
+    ninety_days_ago = today - timedelta(days=90)
+    sparkline = []
+    day = ninety_days_ago
+    while day <= today:
+        sparkline.append({"date": day.isoformat(), "amount": 0.0})
+        day += timedelta(days=1)
+    return sparkline
+
+
 @router.get("/subscriptions")
-async def list_subscriptions(db: AsyncSession = Depends(get_db)):
-    sub_result = await db.execute(select(Subscription))
+async def list_subscriptions(db: AsyncSession = Depends(get_db), user: User = Depends(current_active_user)):
+    plaid_item_ids = await plaid_item_ids_for_user(db, user.id)
+    if not plaid_item_ids:
+        return []
+
+    sub_result = await db.execute(select(Subscription).where(Subscription.plaid_item_id.in_(plaid_item_ids)))
     subscriptions = list(sub_result.scalars().all())
 
     merchant_result = await db.execute(select(Merchant))
@@ -47,8 +64,20 @@ async def list_subscriptions(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/transactions")
-async def list_transactions(flagged_only: bool = False, db: AsyncSession = Depends(get_db)):
-    query = select(Transaction).order_by(Transaction.posted_date.desc())
+async def list_transactions(
+    flagged_only: bool = False,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
+    plaid_item_ids = await plaid_item_ids_for_user(db, user.id)
+    if not plaid_item_ids:
+        return []
+
+    query = (
+        select(Transaction)
+        .where(Transaction.plaid_item_id.in_(plaid_item_ids))
+        .order_by(Transaction.posted_date.desc())
+    )
     if flagged_only:
         query = query.where(Transaction.is_drift.is_(True))
 
@@ -65,8 +94,17 @@ async def list_transactions(flagged_only: bool = False, db: AsyncSession = Depen
 
 
 @router.get("/stats/summary")
-async def stats_summary(db: AsyncSession = Depends(get_db)):
-    sub_result = await db.execute(select(Subscription))
+async def stats_summary(db: AsyncSession = Depends(get_db), user: User = Depends(current_active_user)):
+    plaid_item_ids = await plaid_item_ids_for_user(db, user.id)
+    if not plaid_item_ids:
+        return {
+            "total_monthly_spend": 0.0,
+            "active_subscriptions_count": 0,
+            "flagged_this_month_count": 0,
+            "sparkline": _empty_sparkline(),
+        }
+
+    sub_result = await db.execute(select(Subscription).where(Subscription.plaid_item_id.in_(plaid_item_ids)))
     subscriptions = list(sub_result.scalars().all())
 
     # Plaid's sandbox sign convention is inconsistent in our data (e.g. Sweetgreen
@@ -77,13 +115,19 @@ async def stats_summary(db: AsyncSession = Depends(get_db)):
 
     thirty_days_ago = date.today() - timedelta(days=30)
     flagged_result = await db.execute(
-        select(Transaction).where(Transaction.is_drift.is_(True), Transaction.posted_date >= thirty_days_ago)
+        select(Transaction).where(
+            Transaction.plaid_item_id.in_(plaid_item_ids),
+            Transaction.is_drift.is_(True),
+            Transaction.posted_date >= thirty_days_ago,
+        )
     )
     flagged_this_month_count = len(list(flagged_result.scalars().all()))
 
     ninety_days_ago = date.today() - timedelta(days=90)
     recent_result = await db.execute(
-        select(Transaction).where(Transaction.posted_date >= ninety_days_ago).order_by(Transaction.posted_date)
+        select(Transaction)
+        .where(Transaction.plaid_item_id.in_(plaid_item_ids), Transaction.posted_date >= ninety_days_ago)
+        .order_by(Transaction.posted_date)
     )
     recent_txns = list(recent_result.scalars().all())
 
@@ -110,8 +154,12 @@ async def stats_summary(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/stats/breakdown")
-async def stats_breakdown(db: AsyncSession = Depends(get_db)):
-    txn_result = await db.execute(select(Transaction))
+async def stats_breakdown(db: AsyncSession = Depends(get_db), user: User = Depends(current_active_user)):
+    plaid_item_ids = await plaid_item_ids_for_user(db, user.id)
+    if not plaid_item_ids:
+        return []
+
+    txn_result = await db.execute(select(Transaction).where(Transaction.plaid_item_id.in_(plaid_item_ids)))
     transactions = list(txn_result.scalars().all())
 
     merchant_result = await db.execute(select(Merchant))

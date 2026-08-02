@@ -14,9 +14,7 @@ class Transaction(Base):
     plaid_transaction_id: Mapped[str] = mapped_column(unique=True)
     merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"))
     subscription_id: Mapped[int | None] = mapped_column(ForeignKey("subscriptions.id"))
-    # Nullable in Step 1 so existing rows/writers keep working; tightened to
-    # NOT NULL in Step 5 once every writer populates it.
-    plaid_item_id: Mapped[int | None] = mapped_column(ForeignKey("plaid_items.id"))
+    plaid_item_id: Mapped[int] = mapped_column(ForeignKey("plaid_items.id"), index=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     posted_date: Mapped[date] = mapped_column(Date)
     expected_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))

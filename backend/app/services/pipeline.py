@@ -6,17 +6,8 @@ from app.services import clustering, plaid_client, scoring
 from app.services.serializers import serialize_transaction
 
 
-async def run_pipeline(db: AsyncSession) -> dict:
-    result = await db.execute(select(PlaidItem).order_by(PlaidItem.id.desc()).limit(1))
-    plaid_item = result.scalar_one_or_none()
-    if plaid_item is None:
-        return {"ingested": 0, "clustering": None, "scoring": None, "alerts": []}
-
+async def run_pipeline(db: AsyncSession, plaid_item: PlaidItem) -> dict:
     ingested = await plaid_client.sync_transactions(db, plaid_item)
-    # TODO(Step 6): this still only ever resolves "the single most recent
-    # PlaidItem in the whole table" above, not per-tenant fan-out - that's the
-    # next step. Scoping the clustering/scoring calls here now so the app
-    # keeps working in the meantime.
     clustering_result = await clustering.run_clustering(db, [plaid_item.id])
     scoring_result = await scoring.run_scoring(db, [plaid_item.id])
 

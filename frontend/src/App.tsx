@@ -1,18 +1,24 @@
+import type { ReactNode } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { LiveStatusIndicator } from "./components/LiveStatusIndicator";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SidebarNavItem } from "./components/SidebarNavItem";
+import { useAuth } from "./contexts/AuthContext";
 import { useAlertSocket } from "./hooks/useAlertSocket";
 import { Dashboard } from "./pages/Dashboard";
 import { History } from "./pages/History";
+import { Login } from "./pages/Login";
+import { Register } from "./pages/Register";
 
-function App() {
+function Shell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const socketStatus = useAlertSocket(() => {});
+  const { token, logout } = useAuth();
+  const socketStatus = useAlertSocket(token, () => {});
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 bg-signal-blue p-6">
+      <aside className="flex w-60 shrink-0 flex-col bg-signal-blue p-6">
         <p className="text-heading-sm font-serif font-medium text-white">Driftline</p>
         <div className="mt-2">
           <LiveStatusIndicator status={socketStatus} />
@@ -25,17 +31,47 @@ function App() {
             onClick={() => navigate("/history")}
           />
         </nav>
+        <button
+          onClick={logout}
+          className="mt-auto text-left text-caption font-sans text-white/60 hover:text-white"
+        >
+          Log out
+        </button>
       </aside>
 
       <main className="flex-1 px-6 py-10">
-        <div className="mx-auto max-w-[1040px]">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/history" element={<History />} />
-          </Routes>
-        </div>
+        <div className="mx-auto max-w-[1040px]">{children}</div>
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Shell>
+              <Dashboard />
+            </Shell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/history"
+        element={
+          <ProtectedRoute>
+            <Shell>
+              <History />
+            </Shell>
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   );
 }
 

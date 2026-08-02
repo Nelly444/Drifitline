@@ -5,6 +5,7 @@ import { SpendBreakdownChart } from "../components/SpendBreakdownChart";
 import { StatSummaryCard } from "../components/StatSummaryCard";
 import { SubscriptionCard } from "../components/SubscriptionCard";
 import { TrendChart } from "../components/TrendChart";
+import { useAuth } from "../contexts/AuthContext";
 import { useAlertSocket } from "../hooks/useAlertSocket";
 import { fetchStatsBreakdown, fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
 import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
@@ -14,6 +15,7 @@ export function Dashboard() {
   const [stats, setStats] = useState<StatsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<BreakdownEntry[] | null>(null);
   const [alerts, setAlerts] = useState<TransactionRow[] | null>(null);
+  const { token } = useAuth();
 
   useEffect(() => {
     fetchSubscriptions().then(setSubscriptions);
@@ -22,7 +24,7 @@ export function Dashboard() {
     fetchTransactions(true).then(setAlerts);
   }, []);
 
-  useAlertSocket((txn) => {
+  useAlertSocket(token, (txn) => {
     setAlerts((prev) => (prev?.some((a) => a.id === txn.id) ? prev : [txn, ...(prev ?? [])]));
     setStats((prev) => (prev ? { ...prev, flagged_this_month_count: prev.flagged_this_month_count + 1 } : prev));
   });
