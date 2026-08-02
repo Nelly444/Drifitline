@@ -67,7 +67,7 @@ function ShellContent({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 px-6 py-10">
-        <div className="mx-auto max-w-[1200px]">{children}</div>
+        <div className="mx-auto max-w-[1600px]">{children}</div>
       </main>
     </div>
   );
