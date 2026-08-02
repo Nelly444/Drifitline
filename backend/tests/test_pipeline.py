@@ -12,6 +12,11 @@ class FakeMerchant:
         self.normalized_name = normalized_name
 
 
+class FakePlaidItem:
+    def __init__(self, id):
+        self.id = id
+
+
 class FakeTxn:
     def __init__(self, id, merchant_id, amount, posted_date, is_drift=True):
         self.id = id
@@ -71,7 +76,7 @@ async def test_no_plaid_item_is_a_noop():
 async def test_chains_sync_clustering_scoring_and_serializes_new_alerts():
     merchant = FakeMerchant(id=1, normalized_name="NETFLIX INC")
     flagged_txn = FakeTxn(id=101, merchant_id=1, amount=45.00, posted_date=date(2024, 6, 1))
-    db = FakeDB(plaid_item=object(), merchants=[merchant])
+    db = FakeDB(plaid_item=FakePlaidItem(id=7), merchants=[merchant])
 
     with (
         patch("app.services.pipeline.plaid_client.sync_transactions", new=AsyncMock(return_value=3)) as mock_sync,
@@ -93,8 +98,8 @@ async def test_chains_sync_clustering_scoring_and_serializes_new_alerts():
         result = await run_pipeline(db)
 
     mock_sync.assert_awaited_once()
-    mock_clustering.assert_awaited_once()
-    mock_scoring.assert_awaited_once()
+    mock_clustering.assert_awaited_once_with(db, [7])
+    mock_scoring.assert_awaited_once_with(db, [7])
 
     assert result["ingested"] == 3
     assert result["scoring"] == {"transactions_scored": 1, "flagged_as_drift": 1}

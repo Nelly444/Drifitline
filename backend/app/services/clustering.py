@@ -45,10 +45,12 @@ def resolve_group_links(sorted_txns: list, existing_subscription_id: int | None)
     return existing_subscription_id, unlinked
 
 
-async def run_clustering(db: AsyncSession) -> dict:
-    txn_result = await db.execute(select(Transaction))
+async def run_clustering(db: AsyncSession, plaid_item_ids: list[int]) -> dict:
+    txn_result = await db.execute(select(Transaction).where(Transaction.plaid_item_id.in_(plaid_item_ids)))
     all_txns = list(txn_result.scalars().all())
 
+    # Merchant is a shared, global name-vocabulary table (not tenant data) -
+    # deliberately unfiltered.
     merchant_result = await db.execute(select(Merchant))
     merchants = list(merchant_result.scalars().all())
     merchants_by_id = {m.id: m for m in merchants}
@@ -60,7 +62,10 @@ async def run_clustering(db: AsyncSession) -> dict:
 
     raw_name_to_merchant = {m.raw_name: m for m in merchants}
 
-    sub_result = await db.execute(select(Subscription))
+    # Scoped to this tenant's own Subscriptions only - reusing another tenant's
+    # Subscription for a same-named merchant (e.g. both have "Netflix") would
+    # silently merge their transaction histories into one shared subscription.
+    sub_result = await db.execute(select(Subscription).where(Subscription.plaid_item_id.in_(plaid_item_ids)))
     subscription_id_by_merchant_id = {s.merchant_id: s.id for s in sub_result.scalars().all()}
 
     groups: dict[str, list[Transaction]] = defaultdict(list)
@@ -106,7 +111,7 @@ async def run_clustering(db: AsyncSession) -> dict:
                 member_txns = [t for t, label in zip(sorted_txns, labels) if label == cluster_label]
 
                 canonical_merchant = raw_name_to_merchant[name]
-                subscription = Subscription(merchant_id=canonical_merchant.id)
+                subscription = Subscription(merchant_id=canonical_merchant.id, plaid_item_id=member_txns[0].plaid_item_id)
                 db.add(subscription)
                 await db.flush()
                 subscriptions_created += 1

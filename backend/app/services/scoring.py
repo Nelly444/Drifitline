@@ -44,8 +44,8 @@ def newly_flagged_since(before_by_id: dict[int, bool], txns: list) -> list:
     return [t for t in txns if t.is_drift and not before_by_id.get(t.id, False)]
 
 
-async def run_scoring(db: AsyncSession) -> dict:
-    sub_result = await db.execute(select(Subscription))
+async def run_scoring(db: AsyncSession, plaid_item_ids: list[int]) -> dict:
+    sub_result = await db.execute(select(Subscription).where(Subscription.plaid_item_id.in_(plaid_item_ids)))
     subscriptions = list(sub_result.scalars().all())
 
     transactions_scored = 0

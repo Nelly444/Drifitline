@@ -1,3 +1,5 @@
+import uuid
+
 import plaid
 from plaid.api import plaid_api
 from plaid.model.products import Products
@@ -30,7 +32,7 @@ def _get_client() -> plaid_api.PlaidApi:
     return plaid_api.PlaidApi(plaid.ApiClient(configuration))
 
 
-async def create_sandbox_item(db: AsyncSession) -> PlaidItem:
+async def create_sandbox_item(db: AsyncSession, user_id: uuid.UUID) -> PlaidItem:
     client = _get_client()
 
     public_token_response = client.sandbox_public_token_create(
@@ -47,6 +49,7 @@ async def create_sandbox_item(db: AsyncSession) -> PlaidItem:
     )
 
     plaid_item = PlaidItem(
+        user_id=user_id,
         item_id=exchange_response.item_id,
         access_token=exchange_response.access_token,
     )
@@ -96,6 +99,7 @@ async def sync_transactions(db: AsyncSession, plaid_item: PlaidItem) -> int:
             Transaction(
                 plaid_transaction_id=txn.transaction_id,
                 merchant_id=merchant.id,
+                plaid_item_id=plaid_item.id,
                 amount=txn.amount,
                 posted_date=txn.date,
             )

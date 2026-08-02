@@ -13,8 +13,12 @@ async def run_pipeline(db: AsyncSession) -> dict:
         return {"ingested": 0, "clustering": None, "scoring": None, "alerts": []}
 
     ingested = await plaid_client.sync_transactions(db, plaid_item)
-    clustering_result = await clustering.run_clustering(db)
-    scoring_result = await scoring.run_scoring(db)
+    # TODO(Step 6): this still only ever resolves "the single most recent
+    # PlaidItem in the whole table" above, not per-tenant fan-out - that's the
+    # next step. Scoping the clustering/scoring calls here now so the app
+    # keeps working in the meantime.
+    clustering_result = await clustering.run_clustering(db, [plaid_item.id])
+    scoring_result = await scoring.run_scoring(db, [plaid_item.id])
 
     merchant_result = await db.execute(select(Merchant))
     merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
