@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -19,8 +20,12 @@ export function Login() {
     try {
       await login(email, password);
       navigate("/");
-    } catch {
-      setError("Incorrect email or password.");
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 400) {
+        setError("Incorrect email or password.");
+      } else {
+        setError("Something went wrong. Check your connection and try again.");
+      }
     } finally {
       setSubmitting(false);
     }

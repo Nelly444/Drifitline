@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { AlertFeedRow } from "../components/AlertFeedRow";
 import { EmptyState } from "../components/EmptyState";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { SpendBreakdownChart } from "../components/SpendBreakdownChart";
 import { StatSummaryCard } from "../components/StatSummaryCard";
 import { SubscriptionCard } from "../components/SubscriptionCard";
 import { TrendChart } from "../components/TrendChart";
-import { useAuth } from "../contexts/AuthContext";
-import { useAlertSocket } from "../hooks/useAlertSocket";
+import { useAlertSocketContext } from "../contexts/AlertSocketContext";
 import { connectSandboxAccount, fetchStatsBreakdown, fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
 import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
 
@@ -16,13 +16,20 @@ export function Dashboard() {
   const [breakdown, setBreakdown] = useState<BreakdownEntry[] | null>(null);
   const [alerts, setAlerts] = useState<TransactionRow[] | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const { token } = useAuth();
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { subscribe } = useAlertSocketContext();
 
   function refetchAll() {
-    fetchSubscriptions().then(setSubscriptions);
-    fetchStatsSummary().then(setStats);
-    fetchStatsBreakdown().then(setBreakdown);
-    fetchTransactions(true).then(setAlerts);
+    setLoadError(null);
+    Promise.all([
+      fetchSubscriptions().then(setSubscriptions),
+      fetchStatsSummary().then(setStats),
+      fetchStatsBreakdown().then(setBreakdown),
+      fetchTransactions(true).then(setAlerts),
+    ]).catch(() => {
+      setLoadError("Couldn't load your dashboard. Check your connection and try again.");
+    });
   }
 
   useEffect(() => {
@@ -31,25 +38,58 @@ export function Dashboard() {
 
   async function handleConnect() {
     setConnecting(true);
+    setConnectError(null);
     try {
       await connectSandboxAccount();
-      refetchAll();
+      // Plaid's sandbox data isn't always ready the instant an item is linked,
+      // so the very first sync/cluster/forecast pass right after connecting can
+      // legitimately come back empty - the background scheduler retries this
+      // tenant automatically, so poll until subscriptions actually show up
+      // instead of leaving the user stuck on "Connecting..." forever.
+      await waitForSubscriptions();
+    } catch {
+      setConnectError("Couldn't connect your account. Please try again.");
     } finally {
       setConnecting(false);
     }
   }
 
-  useAlertSocket(token, (txn) => {
-    setAlerts((prev) => (prev?.some((a) => a.id === txn.id) ? prev : [txn, ...(prev ?? [])]));
-    setStats((prev) => (prev ? { ...prev, flagged_this_month_count: prev.flagged_this_month_count + 1 } : prev));
-  });
+  async function waitForSubscriptions(maxAttempts = 15, delayMs = 3000) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const subs = await fetchSubscriptions();
+      if (subs.length > 0) {
+        refetchAll();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    // Didn't show up within the poll window - the scheduler will still pick it
+    // up in the background, and a manual refresh will pick up the result.
+    refetchAll();
+  }
+
+  useEffect(() => {
+    return subscribe((txn) => {
+      setAlerts((prev) => (prev?.some((a) => a.id === txn.id) ? prev : [txn, ...(prev ?? [])]));
+      setStats((prev) => (prev ? { ...prev, flagged_this_month_count: prev.flagged_this_month_count + 1 } : prev));
+    });
+  }, [subscribe]);
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <p className="text-body font-sans text-rust">{loadError}</p>
+        <PrimaryButton onClick={refetchAll}>Try again</PrimaryButton>
+      </div>
+    );
+  }
 
   if (subscriptions === null || stats === null || breakdown === null || alerts === null) {
     return null;
   }
 
   if (subscriptions.length === 0) {
-    return <EmptyState onConnect={handleConnect} connecting={connecting} />;
+    return <EmptyState onConnect={handleConnect} connecting={connecting} error={connectError} />;
   }
 
   return (

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     PLAID_SECRET: str = ""
     PLAID_ENV: str = "sandbox"
     JWT_SECRET: str
+    ENCRYPTION_KEY: str
+    FRONTEND_ORIGIN: str = "http://localhost:5173"
 
 
 @lru_cache

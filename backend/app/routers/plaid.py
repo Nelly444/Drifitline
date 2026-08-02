@@ -6,17 +6,18 @@ from app.auth import current_active_user
 from app.db import get_db
 from app.models import PlaidItem, User
 from app.services import plaid_client
+from app.services.rate_limit import rate_limit
 
 router = APIRouter(prefix="/plaid", tags=["plaid"])
 
 
-@router.post("/sandbox-link")
+@router.post("/sandbox-link", dependencies=[Depends(rate_limit(10, 60))])
 async def sandbox_link(db: AsyncSession = Depends(get_db), user: User = Depends(current_active_user)):
     plaid_item = await plaid_client.create_sandbox_item(db, user.id)
     return {"item_id": plaid_item.item_id}
 
 
-@router.post("/sync")
+@router.post("/sync", dependencies=[Depends(rate_limit(20, 60))])
 async def sync(db: AsyncSession = Depends(get_db), user: User = Depends(current_active_user)):
     result = await db.execute(
         select(PlaidItem).where(PlaidItem.user_id == user.id).order_by(PlaidItem.id.desc()).limit(1)

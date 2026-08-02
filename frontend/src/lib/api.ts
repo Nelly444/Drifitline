@@ -1,9 +1,10 @@
 import axios from "axios";
+import { API_URL } from "./config";
 import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "./types";
 
 export const TOKEN_STORAGE_KEY = "driftline_token";
 
-const client = axios.create({ baseURL: "http://localhost:8000" });
+const client = axios.create({ baseURL: API_URL });
 
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -17,6 +18,12 @@ let onUnauthorized: (() => void) | null = null;
 
 export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
+}
+
+// Lets non-HTTP callers (the WebSocket, on an auth failure) trigger the same
+// logout flow as a 401 from a regular API call.
+export function triggerUnauthorized() {
+  onUnauthorized?.();
 }
 
 client.interceptors.response.use(

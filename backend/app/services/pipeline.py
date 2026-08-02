@@ -11,7 +11,8 @@ async def run_pipeline(db: AsyncSession, plaid_item: PlaidItem) -> dict:
     clustering_result = await clustering.run_clustering(db, [plaid_item.id])
     scoring_result = await scoring.run_scoring(db, [plaid_item.id])
 
-    merchant_result = await db.execute(select(Merchant))
+    merchant_ids = {txn.merchant_id for txn in scoring_result["newly_flagged"]}
+    merchant_result = await db.execute(select(Merchant).where(Merchant.id.in_(merchant_ids)))
     merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
 
     alerts = [

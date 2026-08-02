@@ -8,7 +8,8 @@ class ConnectionManager:
         self.active: dict[uuid.UUID, set[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, user_id: uuid.UUID) -> None:
-        await websocket.accept()
+        # Caller has already accepted the socket - the auth handshake needs it
+        # accepted before the client can send its first (token) message.
         self.active.setdefault(user_id, set()).add(websocket)
 
     def disconnect(self, websocket: WebSocket, user_id: uuid.UUID) -> None:

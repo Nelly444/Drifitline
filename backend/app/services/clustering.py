@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Merchant, Subscription, Transaction
@@ -111,10 +112,28 @@ async def run_clustering(db: AsyncSession, plaid_item_ids: list[int]) -> dict:
                 member_txns = [t for t, label in zip(sorted_txns, labels) if label == cluster_label]
 
                 canonical_merchant = raw_name_to_merchant[name]
-                subscription = Subscription(merchant_id=canonical_merchant.id, plaid_item_id=member_txns[0].plaid_item_id)
-                db.add(subscription)
-                await db.flush()
-                subscriptions_created += 1
+                item_id = member_txns[0].plaid_item_id
+
+                # A concurrent clustering run for this tenant (scheduler tick
+                # overlapping a manual /clustering/run) can both decide "no
+                # existing subscription yet" and try to create one; the
+                # savepoint confines the resulting IntegrityError so we fall
+                # back to reusing the row the other run just created instead
+                # of splitting this merchant's history across two duplicates.
+                try:
+                    async with db.begin_nested():
+                        subscription = Subscription(merchant_id=canonical_merchant.id, plaid_item_id=item_id)
+                        db.add(subscription)
+                        await db.flush()
+                    subscriptions_created += 1
+                except IntegrityError:
+                    result = await db.execute(
+                        select(Subscription).where(
+                            Subscription.merchant_id == canonical_merchant.id,
+                            Subscription.plaid_item_id == item_id,
+                        )
+                    )
+                    subscription = result.scalar_one()
 
                 for txn in member_txns:
                     txn.subscription_id = subscription.id

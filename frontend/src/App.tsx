@@ -3,18 +3,18 @@ import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { LiveStatusIndicator } from "./components/LiveStatusIndicator";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SidebarNavItem } from "./components/SidebarNavItem";
+import { AlertSocketProvider, useAlertSocketContext } from "./contexts/AlertSocketContext";
 import { useAuth } from "./contexts/AuthContext";
-import { useAlertSocket } from "./hooks/useAlertSocket";
 import { Dashboard } from "./pages/Dashboard";
 import { History } from "./pages/History";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 
-function Shell({ children }: { children: ReactNode }) {
+function ShellContent({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { token, logout } = useAuth();
-  const socketStatus = useAlertSocket(token, () => {});
+  const { logout } = useAuth();
+  const { status: socketStatus } = useAlertSocketContext();
 
   return (
     <div className="flex min-h-screen">
@@ -43,6 +43,15 @@ function Shell({ children }: { children: ReactNode }) {
         <div className="mx-auto max-w-[1040px]">{children}</div>
       </main>
     </div>
+  );
+}
+
+function Shell({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
+  return (
+    <AlertSocketProvider token={token}>
+      <ShellContent>{children}</ShellContent>
+    </AlertSocketProvider>
   );
 }
 

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import date
 
 from sqlalchemy import select
@@ -52,13 +53,20 @@ async def run_scoring(db: AsyncSession, plaid_item_ids: list[int]) -> dict:
     flagged_as_drift = 0
     newly_flagged: list = []
 
-    for subscription in subscriptions:
+    # One query for every subscription's transaction history instead of one
+    # query per subscription - this runs on every scheduler tick for every
+    # tenant, so the per-subscription round trips add up fast.
+    sub_ids = [s.id for s in subscriptions]
+    txns_by_sub_id: dict[int, list] = defaultdict(list)
+    if sub_ids:
         txn_result = await db.execute(
-            select(Transaction)
-            .where(Transaction.subscription_id == subscription.id)
-            .order_by(Transaction.posted_date)
+            select(Transaction).where(Transaction.subscription_id.in_(sub_ids)).order_by(Transaction.posted_date)
         )
-        txns = list(txn_result.scalars().all())
+        for txn in txn_result.scalars().all():
+            txns_by_sub_id[txn.subscription_id].append(txn)
+
+    for subscription in subscriptions:
+        txns = txns_by_sub_id.get(subscription.id, [])
         if len(txns) < MIN_HISTORY + 1:
             continue
 

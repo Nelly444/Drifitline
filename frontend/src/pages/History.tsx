@@ -1,14 +1,32 @@
 import { useEffect, useState } from "react";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { TransactionTableRow } from "../components/TransactionTableRow";
 import { fetchTransactions } from "../lib/api";
 import type { TransactionRow } from "../lib/types";
 
 export function History() {
   const [transactions, setTransactions] = useState<TransactionRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function load() {
+    setError(null);
+    fetchTransactions(false)
+      .then(setTransactions)
+      .catch(() => setError("Couldn't load transaction history. Check your connection and try again."));
+  }
 
   useEffect(() => {
-    fetchTransactions(false).then(setTransactions);
+    load();
   }, []);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <p className="text-body font-sans text-rust">{error}</p>
+        <PrimaryButton onClick={load}>Try again</PrimaryButton>
+      </div>
+    );
+  }
 
   if (transactions === null) return null;
 

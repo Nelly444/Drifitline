@@ -33,18 +33,27 @@ async def list_subscriptions(db: AsyncSession = Depends(get_db), user: User = De
     sub_result = await db.execute(select(Subscription).where(Subscription.plaid_item_id.in_(plaid_item_ids)))
     subscriptions = list(sub_result.scalars().all())
 
-    merchant_result = await db.execute(select(Merchant))
+    merchant_ids = {sub.merchant_id for sub in subscriptions}
+    merchant_result = await db.execute(select(Merchant).where(Merchant.id.in_(merchant_ids)))
     merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
+
+    # One query for every subscription's transactions instead of one query per
+    # subscription - the first transaction seen per subscription_id is the latest,
+    # since the query is already ordered by posted_date desc.
+    sub_ids = [sub.id for sub in subscriptions]
+    latest_by_sub_id: dict[int, Transaction] = {}
+    if sub_ids:
+        txn_result = await db.execute(
+            select(Transaction)
+            .where(Transaction.subscription_id.in_(sub_ids))
+            .order_by(Transaction.posted_date.desc())
+        )
+        for txn in txn_result.scalars().all():
+            latest_by_sub_id.setdefault(txn.subscription_id, txn)
 
     out = []
     for sub in subscriptions:
-        txn_result = await db.execute(
-            select(Transaction)
-            .where(Transaction.subscription_id == sub.id)
-            .order_by(Transaction.posted_date.desc())
-            .limit(1)
-        )
-        latest = txn_result.scalar_one_or_none()
+        latest = latest_by_sub_id.get(sub.id)
         merchant = merchants_by_id.get(sub.merchant_id)
 
         out.append({
@@ -84,7 +93,8 @@ async def list_transactions(
     txn_result = await db.execute(query)
     transactions = list(txn_result.scalars().all())
 
-    merchant_result = await db.execute(select(Merchant))
+    merchant_ids = {t.merchant_id for t in transactions}
+    merchant_result = await db.execute(select(Merchant).where(Merchant.id.in_(merchant_ids)))
     merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
 
     return [
@@ -162,7 +172,8 @@ async def stats_breakdown(db: AsyncSession = Depends(get_db), user: User = Depen
     txn_result = await db.execute(select(Transaction).where(Transaction.plaid_item_id.in_(plaid_item_ids)))
     transactions = list(txn_result.scalars().all())
 
-    merchant_result = await db.execute(select(Merchant))
+    merchant_ids = {t.merchant_id for t in transactions}
+    merchant_result = await db.execute(select(Merchant).where(Merchant.id.in_(merchant_ids)))
     merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
 
     totals: dict[str, float] = {}

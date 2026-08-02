@@ -31,9 +31,13 @@ class FakeResult:
 class FakeDB:
     def __init__(self, plaid_items):
         self.plaid_items = plaid_items
+        self.rollback_count = 0
 
     async def execute(self, query):
         return FakeResult(self.plaid_items)
+
+    async def rollback(self):
+        self.rollback_count += 1
 
 
 def _session_yielding(fake_db):
@@ -102,3 +106,26 @@ async def test_exception_from_run_pipeline_is_swallowed():
         await scheduled_pipeline_run()  # must not raise
 
     mock_broadcast.assert_not_awaited()
+    assert fake_db.rollback_count == 1
+
+
+@pytest.mark.asyncio
+async def test_one_tenants_exception_does_not_abort_other_tenants_in_same_tick():
+    item_a, item_b = FakePlaidItem(id=1, user_id=USER_A), FakePlaidItem(id=2, user_id=USER_B)
+    fake_db = FakeDB([item_a, item_b])
+
+    async def fake_run_pipeline(db, plaid_item):
+        if plaid_item is item_a:
+            raise RuntimeError("boom")
+        return {"alerts": [{"id": plaid_item.id, "merchant_name": "X"}]}
+
+    with (
+        patch("app.services.scheduler.async_session", new=_session_yielding(fake_db)),
+        patch("app.services.scheduler.run_pipeline", new=AsyncMock(side_effect=fake_run_pipeline)) as mock_pipeline,
+        patch("app.services.scheduler.manager.broadcast_to_user", new=AsyncMock()) as mock_broadcast,
+    ):
+        await scheduled_pipeline_run()  # must not raise
+
+    assert mock_pipeline.await_count == 2
+    assert fake_db.rollback_count == 1
+    mock_broadcast.assert_awaited_once_with(USER_B, {"type": "new_alert", "transaction": {"id": 2, "merchant_name": "X"}})

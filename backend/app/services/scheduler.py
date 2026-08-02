@@ -14,19 +14,25 @@ POLL_INTERVAL_SECONDS = 20
 
 
 async def scheduled_pipeline_run() -> None:
-    try:
-        async with async_session() as db:
+    async with async_session() as db:
+        try:
             result = await db.execute(select(PlaidItem))
-            for plaid_item in result.scalars().all():
+            plaid_items = result.scalars().all()
+        except Exception:
+            logger.exception("Scheduled pipeline run failed to load plaid items")
+            return
+
+        for plaid_item in plaid_items:
+            try:
                 pipeline_result = await run_pipeline(db, plaid_item)
                 for alert in pipeline_result["alerts"]:
                     await manager.broadcast_to_user(plaid_item.user_id, {"type": "new_alert", "transaction": alert})
-    except Exception:
-        # One failed run (transient Plaid hiccup, etc.) shouldn't stop future
-        # scheduled runs - log and let the next interval try again. Note this
-        # still wraps the whole per-tenant loop, so one tenant's failure
-        # currently aborts the rest of that tick too - accepted limitation.
-        logger.exception("Scheduled pipeline run failed")
+            except Exception:
+                # One tenant's failure (transient Plaid hiccup, etc.) shouldn't
+                # stop the rest of this tick's tenants or future ticks - log,
+                # roll back so the session is usable again, and move on.
+                logger.exception("Pipeline run failed for plaid_item_id=%s", plaid_item.id)
+                await db.rollback()
 
 
 def create_scheduler() -> AsyncIOScheduler:

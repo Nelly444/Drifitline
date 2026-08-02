@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -19,8 +20,23 @@ export function Register() {
     try {
       await register(email, password);
       navigate("/");
-    } catch {
-      setError("Could not create an account with that email.");
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 400) {
+        // fastapi-users returns `detail` as a plain string for
+        // REGISTER_USER_ALREADY_EXISTS, but as a {code, reason} object for
+        // REGISTER_INVALID_PASSWORD - handle both shapes.
+        const detail = err.response.data?.detail;
+        const code = typeof detail === "string" ? detail : detail?.code;
+        if (code === "REGISTER_USER_ALREADY_EXISTS") {
+          setError("An account with that email already exists.");
+        } else if (code === "REGISTER_INVALID_PASSWORD") {
+          setError(detail?.reason ?? "That password isn't allowed. Please choose another.");
+        } else {
+          setError("Could not create an account with that email.");
+        }
+      } else {
+        setError("Something went wrong. Check your connection and try again.");
+      }
     } finally {
       setSubmitting(false);
     }
