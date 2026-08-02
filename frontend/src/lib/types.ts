@@ -34,3 +34,8 @@ export interface StatsSummary {
   flagged_this_month_count: number;
   sparkline: SparklinePoint[];
 }
+
+export interface BreakdownEntry {
+  merchant_name: string;
+  amount: number;
+}

@@ -17,7 +17,7 @@ export function StatSummaryCard({ label, value, sparkline }: StatSummaryCardProp
           <div className="h-10 w-24">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={sparkline}>
-                <Line type="monotone" dataKey="amount" stroke="#12151c" strokeWidth={2} dot={false} isAnimationActive={false} />
+                <Line type="monotone" dataKey="amount" stroke="#1e4fd8" strokeWidth={2} dot={false} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

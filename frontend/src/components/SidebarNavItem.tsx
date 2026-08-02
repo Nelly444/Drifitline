@@ -11,7 +11,7 @@ export function SidebarNavItem({
     <button
       onClick={onClick}
       className={`w-full rounded-input px-4 py-2.5 text-left text-body-sm font-sans font-medium ${
-        active ? "bg-signal-blue-wash text-signal-blue" : "bg-transparent text-slate"
+        active ? "bg-white text-signal-blue" : "bg-transparent text-white/70 hover:text-white"
       }`}
     >
       {label}

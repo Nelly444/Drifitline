@@ -98,7 +98,15 @@ async def stats_summary(db: AsyncSession = Depends(get_db)):
     for t in recent_txns:
         daily_totals[t.posted_date] = daily_totals.get(t.posted_date, 0.0) + abs(float(t.amount))
 
-    sparkline = [{"date": d.isoformat(), "amount": round(amount, 2)} for d, amount in sorted(daily_totals.items())]
+    # Zero-fill every day in the window (not just days with transactions) so the
+    # sparkline is time-proportional - a category axis over sparse dates otherwise
+    # compresses multi-week gaps into the same visual width as single-day gaps.
+    today = date.today()
+    sparkline = []
+    day = ninety_days_ago
+    while day <= today:
+        sparkline.append({"date": day.isoformat(), "amount": round(daily_totals.get(day, 0.0), 2)})
+        day += timedelta(days=1)
 
     return {
         "total_monthly_spend": round(total_monthly_spend, 2),
@@ -106,3 +114,28 @@ async def stats_summary(db: AsyncSession = Depends(get_db)):
         "flagged_this_month_count": flagged_this_month_count,
         "sparkline": sparkline,
     }
+
+
+@router.get("/stats/breakdown")
+async def stats_breakdown(db: AsyncSession = Depends(get_db)):
+    txn_result = await db.execute(select(Transaction))
+    transactions = list(txn_result.scalars().all())
+
+    merchant_result = await db.execute(select(Merchant))
+    merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
+
+    totals: dict[str, float] = {}
+    for t in transactions:
+        merchant = merchants_by_id[t.merchant_id]
+        name = merchant.normalized_name
+        totals[name] = totals.get(name, 0.0) + abs(float(t.amount))
+
+    ranked = sorted(totals.items(), key=lambda item: item[1], reverse=True)
+    top = ranked[:6]
+    other_total = sum(amount for _, amount in ranked[6:])
+
+    breakdown = [{"merchant_name": name, "amount": round(amount, 2)} for name, amount in top]
+    if other_total > 0:
+        breakdown.append({"merchant_name": "Other", "amount": round(other_total, 2)})
+
+    return breakdown

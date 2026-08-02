@@ -9,8 +9,8 @@ function App() {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 border-r border-hairline p-6">
-        <p className="text-heading-sm font-serif font-medium text-ink">Driftline</p>
+      <aside className="w-60 shrink-0 bg-signal-blue p-6">
+        <p className="text-heading-sm font-serif font-medium text-white">Driftline</p>
         <nav className="mt-8 flex flex-col gap-1">
           <SidebarNavItem label="Dashboard" active={location.pathname === "/"} onClick={() => navigate("/")} />
           <SidebarNavItem

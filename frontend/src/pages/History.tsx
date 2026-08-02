@@ -13,9 +13,15 @@ export function History() {
   if (transactions === null) return null;
 
   return (
-    <div className="rounded-card border border-hairline bg-surface p-6">
-      <h2 className="text-heading-sm font-serif font-medium text-ink">Transaction history</h2>
-      <div className="mt-4">
+    <div className="flex flex-col gap-10">
+      <div>
+        <h1 className="text-heading font-serif font-medium text-ink">Transaction history</h1>
+        <p className="mt-1 text-body-sm font-sans text-slate">
+          Every transaction Driftline has ingested, most recent first.
+        </p>
+      </div>
+
+      <div className="rounded-card border border-hairline bg-surface p-6">
         {transactions.map((txn) => (
           <TransactionTableRow key={txn.id} transaction={txn} />
         ))}

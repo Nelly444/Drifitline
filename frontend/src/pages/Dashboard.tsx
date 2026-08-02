@@ -1,23 +1,27 @@
 import { useEffect, useState } from "react";
 import { AlertFeedRow } from "../components/AlertFeedRow";
 import { EmptyState } from "../components/EmptyState";
+import { SpendBreakdownChart } from "../components/SpendBreakdownChart";
 import { StatSummaryCard } from "../components/StatSummaryCard";
 import { SubscriptionCard } from "../components/SubscriptionCard";
-import { fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
-import type { StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
+import { TrendChart } from "../components/TrendChart";
+import { fetchStatsBreakdown, fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
+import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
 
 export function Dashboard() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionSummary[] | null>(null);
   const [stats, setStats] = useState<StatsSummary | null>(null);
+  const [breakdown, setBreakdown] = useState<BreakdownEntry[] | null>(null);
   const [alerts, setAlerts] = useState<TransactionRow[] | null>(null);
 
   useEffect(() => {
     fetchSubscriptions().then(setSubscriptions);
     fetchStatsSummary().then(setStats);
+    fetchStatsBreakdown().then(setBreakdown);
     fetchTransactions(true).then(setAlerts);
   }, []);
 
-  if (subscriptions === null || stats === null || alerts === null) {
+  if (subscriptions === null || stats === null || breakdown === null || alerts === null) {
     return null;
   }
 
@@ -27,6 +31,13 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-10">
+      <div>
+        <h1 className="text-heading font-serif font-medium text-ink">Dashboard</h1>
+        <p className="mt-1 text-body-sm font-sans text-slate">
+          Your recurring subscriptions and recent activity.
+        </p>
+      </div>
+
       <div className="grid grid-cols-3 gap-6">
         <StatSummaryCard
           label="Total monthly spend"
@@ -35,6 +46,11 @@ export function Dashboard() {
         />
         <StatSummaryCard label="Active subscriptions" value={String(stats.active_subscriptions_count)} />
         <StatSummaryCard label="Flagged this month" value={String(stats.flagged_this_month_count)} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <TrendChart data={stats.sparkline} />
+        <SpendBreakdownChart data={breakdown} />
       </div>
 
       <div className="grid grid-cols-2 gap-6">

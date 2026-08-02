@@ -15,7 +15,7 @@ const KNOWN_MERCHANT_COLORS: Record<string, string> = {
 
 // Deliberately avoids Signal Blue/Moss/Rust/Amber hexes - those four are reserved for
 // the functional action/status system, not merchant decoration.
-const FALLBACK_PALETTE = ["#6B5B95", "#B8860B", "#4A6C6F", "#8C5E58", "#556B2F", "#4B5563"];
+const FALLBACK_PALETTE = ["#7C5CFC", "#06B6D4", "#EC4899", "#F97316", "#8B5CF6", "#0D9488"];
 
 function hashString(value: string): number {
   let hash = 0;
