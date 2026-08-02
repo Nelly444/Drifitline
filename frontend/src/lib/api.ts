@@ -64,3 +64,10 @@ export async function fetchStatsBreakdown(): Promise<BreakdownEntry[]> {
   const { data } = await client.get<BreakdownEntry[]>("/stats/breakdown");
   return data;
 }
+
+export async function connectSandboxAccount(): Promise<void> {
+  await client.post("/plaid/sandbox-link");
+  await client.post("/plaid/sync");
+  await client.post("/clustering/run");
+  await client.post("/forecasting/run");
+}

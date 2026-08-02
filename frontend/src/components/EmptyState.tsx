@@ -1,7 +1,7 @@
 import { DriftMeter } from "./DriftMeter";
 import { PrimaryButton } from "./PrimaryButton";
 
-export function EmptyState({ onConnect }: { onConnect?: () => void }) {
+export function EmptyState({ onConnect, connecting }: { onConnect?: () => void; connecting?: boolean }) {
   return (
     <div className="flex flex-col items-center py-24 text-center">
       <div className="w-full max-w-md">
@@ -24,7 +24,9 @@ export function EmptyState({ onConnect }: { onConnect?: () => void }) {
       </p>
 
       <div className="mt-8">
-        <PrimaryButton onClick={onConnect}>Connect account</PrimaryButton>
+        <PrimaryButton onClick={onConnect} disabled={connecting} className="disabled:opacity-60">
+          {connecting ? "Connecting…" : "Connect account"}
+        </PrimaryButton>
       </div>
     </div>
   );

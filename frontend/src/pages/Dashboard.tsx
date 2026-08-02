@@ -7,7 +7,7 @@ import { SubscriptionCard } from "../components/SubscriptionCard";
 import { TrendChart } from "../components/TrendChart";
 import { useAuth } from "../contexts/AuthContext";
 import { useAlertSocket } from "../hooks/useAlertSocket";
-import { fetchStatsBreakdown, fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
+import { connectSandboxAccount, fetchStatsBreakdown, fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
 import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
 
 export function Dashboard() {
@@ -15,14 +15,29 @@ export function Dashboard() {
   const [stats, setStats] = useState<StatsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<BreakdownEntry[] | null>(null);
   const [alerts, setAlerts] = useState<TransactionRow[] | null>(null);
+  const [connecting, setConnecting] = useState(false);
   const { token } = useAuth();
 
-  useEffect(() => {
+  function refetchAll() {
     fetchSubscriptions().then(setSubscriptions);
     fetchStatsSummary().then(setStats);
     fetchStatsBreakdown().then(setBreakdown);
     fetchTransactions(true).then(setAlerts);
+  }
+
+  useEffect(() => {
+    refetchAll();
   }, []);
+
+  async function handleConnect() {
+    setConnecting(true);
+    try {
+      await connectSandboxAccount();
+      refetchAll();
+    } finally {
+      setConnecting(false);
+    }
+  }
 
   useAlertSocket(token, (txn) => {
     setAlerts((prev) => (prev?.some((a) => a.id === txn.id) ? prev : [txn, ...(prev ?? [])]));
@@ -34,7 +49,7 @@ export function Dashboard() {
   }
 
   if (subscriptions.length === 0) {
-    return <EmptyState />;
+    return <EmptyState onConnect={handleConnect} connecting={connecting} />;
   }
 
   return (
