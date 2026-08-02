@@ -1,6 +1,14 @@
 import axios from "axios";
 import { API_URL } from "./config";
-import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "./types";
+import type {
+  BreakdownEntry,
+  CurrentUser,
+  PlaidStatus,
+  StatsSummary,
+  SubscriptionDetail,
+  SubscriptionSummary,
+  TransactionRow,
+} from "./types";
 
 export const TOKEN_STORAGE_KEY = "driftline_token";
 
@@ -55,6 +63,11 @@ export async function fetchSubscriptions(): Promise<SubscriptionSummary[]> {
   return data;
 }
 
+export async function fetchSubscriptionDetail(id: string): Promise<SubscriptionDetail> {
+  const { data } = await client.get<SubscriptionDetail>(`/subscriptions/${id}`);
+  return data;
+}
+
 export async function fetchTransactions(flaggedOnly = false): Promise<TransactionRow[]> {
   const { data } = await client.get<TransactionRow[]>("/transactions", {
     params: { flagged_only: flaggedOnly },
@@ -77,4 +90,26 @@ export async function connectSandboxAccount(): Promise<void> {
   await client.post("/plaid/sync");
   await client.post("/clustering/run");
   await client.post("/forecasting/run");
+}
+
+export async function fetchCurrentUser(): Promise<CurrentUser> {
+  const { data } = await client.get<CurrentUser>("/users/me");
+  return data;
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  await client.patch("/users/me", { password });
+}
+
+export async function deleteAccount(): Promise<void> {
+  await client.delete("/users/me");
+}
+
+export async function fetchPlaidStatus(): Promise<PlaidStatus> {
+  const { data } = await client.get<PlaidStatus>("/plaid/status");
+  return data;
+}
+
+export async function disconnectPlaidAccount(): Promise<void> {
+  await client.delete("/plaid/item");
 }

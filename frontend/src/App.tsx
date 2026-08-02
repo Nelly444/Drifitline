@@ -9,6 +9,9 @@ import { Dashboard } from "./pages/Dashboard";
 import { History } from "./pages/History";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
+import { Settings } from "./pages/Settings";
+import { SubscriptionDetail } from "./pages/SubscriptionDetail";
+import { Subscriptions } from "./pages/Subscriptions";
 
 function ShellContent({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -26,9 +29,19 @@ function ShellContent({ children }: { children: ReactNode }) {
         <nav className="mt-8 flex flex-col gap-1">
           <SidebarNavItem label="Dashboard" active={location.pathname === "/"} onClick={() => navigate("/")} />
           <SidebarNavItem
+            label="Subscriptions"
+            active={location.pathname.startsWith("/subscriptions")}
+            onClick={() => navigate("/subscriptions")}
+          />
+          <SidebarNavItem
             label="History"
             active={location.pathname === "/history"}
             onClick={() => navigate("/history")}
+          />
+          <SidebarNavItem
+            label="Settings"
+            active={location.pathname === "/settings"}
+            onClick={() => navigate("/settings")}
           />
         </nav>
         <button
@@ -71,11 +84,41 @@ function App() {
         }
       />
       <Route
+        path="/subscriptions"
+        element={
+          <ProtectedRoute>
+            <Shell>
+              <Subscriptions />
+            </Shell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/subscriptions/:id"
+        element={
+          <ProtectedRoute>
+            <Shell>
+              <SubscriptionDetail />
+            </Shell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/history"
         element={
           <ProtectedRoute>
             <Shell>
               <History />
+            </Shell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <Shell>
+              <Settings />
             </Shell>
           </ProtectedRoute>
         }

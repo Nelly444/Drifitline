@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,6 +70,44 @@ async def list_subscriptions(db: AsyncSession = Depends(get_db), user: User = De
         })
 
     return out
+
+
+@router.get("/subscriptions/{subscription_id}")
+async def get_subscription(
+    subscription_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_active_user),
+):
+    plaid_item_ids = await plaid_item_ids_for_user(db, user.id)
+
+    sub_result = await db.execute(
+        select(Subscription).where(
+            Subscription.id == subscription_id,
+            Subscription.plaid_item_id.in_(plaid_item_ids),
+        )
+    )
+    subscription = sub_result.scalar_one_or_none()
+    if subscription is None:
+        raise HTTPException(status_code=404, detail="Subscription not found.")
+
+    merchant_result = await db.execute(select(Merchant).where(Merchant.id == subscription.merchant_id))
+    merchant = merchant_result.scalar_one_or_none()
+
+    txn_result = await db.execute(
+        select(Transaction)
+        .where(Transaction.subscription_id == subscription.id)
+        .order_by(Transaction.posted_date)
+    )
+    transactions = list(txn_result.scalars().all())
+    merchant_name = merchant.normalized_name if merchant else None
+
+    return {
+        "id": subscription.id,
+        "merchant_name": merchant_name,
+        "forecast_amount": float(subscription.forecast_amount) if subscription.forecast_amount is not None else None,
+        "forecast_date": subscription.forecast_date.isoformat() if subscription.forecast_date else None,
+        "transactions": [serialize_transaction(t, merchant_name) for t in transactions],
+    }
 
 
 @router.get("/transactions")

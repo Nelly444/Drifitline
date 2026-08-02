@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import UserCreate, UserRead, UserUpdate, auth_backend, fastapi_users
 from app.config import get_settings
-from app.routers import clustering, dashboard, forecasting, plaid
+from app.routers import account, clustering, dashboard, forecasting, plaid
 from app.services.rate_limit import rate_limit
 from app.services.scheduler import create_scheduler
 from app.ws import router as ws
@@ -40,6 +40,7 @@ app.include_router(
     tags=["auth"],
     dependencies=[Depends(rate_limit(10, 60))],
 )
+app.include_router(account.router)
 app.include_router(fastapi_users.get_users_router(UserRead, UserUpdate), prefix="/users", tags=["users"])
 
 app.include_router(plaid.router)

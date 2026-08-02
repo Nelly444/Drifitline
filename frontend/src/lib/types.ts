@@ -39,3 +39,21 @@ export interface BreakdownEntry {
   merchant_name: string;
   amount: number;
 }
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+}
+
+export interface PlaidStatus {
+  connected: boolean;
+  linked_at: string | null;
+}
+
+export interface SubscriptionDetail {
+  id: number;
+  merchant_name: string | null;
+  forecast_amount: number | null;
+  forecast_date: string | null;
+  transactions: TransactionRow[];
+}

@@ -4,8 +4,8 @@ import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SpendBreakdownChart } from "../components/SpendBreakdownChart";
 import { StatSummaryCard } from "../components/StatSummaryCard";
-import { SubscriptionCard } from "../components/SubscriptionCard";
 import { TrendChart } from "../components/TrendChart";
+import { UpcomingChargesCard } from "../components/UpcomingChargesCard";
 import { useAlertSocketContext } from "../contexts/AlertSocketContext";
 import { connectSandboxAccount, fetchStatsBreakdown, fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
 import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
@@ -97,7 +97,7 @@ export function Dashboard() {
       <div>
         <h1 className="text-heading font-serif font-medium text-ink">Dashboard</h1>
         <p className="mt-1 text-body-sm font-sans text-slate">
-          Your recurring subscriptions and recent activity.
+          An overview of your spend, upcoming charges, and recent activity.
         </p>
       </div>
 
@@ -116,11 +116,7 @@ export function Dashboard() {
         <SpendBreakdownChart data={breakdown} />
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        {subscriptions.map((sub) => (
-          <SubscriptionCard key={sub.id} subscription={sub} />
-        ))}
-      </div>
+      <UpcomingChargesCard subscriptions={subscriptions} />
 
       {alerts.length > 0 && (
         <div className="rounded-card border border-hairline bg-surface p-6">
