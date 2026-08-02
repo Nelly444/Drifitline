@@ -4,13 +4,14 @@ from datetime import date, timedelta
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 
-from app.services.clustering import EPS, MIN_SAMPLES, build_group_features
+from app.services.clustering import EPS, MIN_SAMPLES, build_group_features, resolve_group_links
 
 
 class FakeTxn:
-    def __init__(self, posted_date, amount):
+    def __init__(self, posted_date, amount, subscription_id=None):
         self.posted_date = posted_date
         self.amount = amount
+        self.subscription_id = subscription_id
 
 
 def test_recurring_pattern_forms_one_cluster_separate_from_noise():
@@ -47,3 +48,23 @@ def test_first_transaction_imputes_median_interval_not_zero():
     features = build_group_features(txns)
     assert features[0][1] == features[1][1]  # first point imputes the median gap
     assert features[0][1] > 0
+
+
+def test_resolve_group_links_returns_none_when_no_existing_subscription():
+    txns = [FakeTxn(date(2024, 1, 1), 15.99)]
+
+    resolved_id, unlinked = resolve_group_links(txns, existing_subscription_id=None)
+
+    assert resolved_id is None
+    assert unlinked == []
+
+
+def test_resolve_group_links_reuses_existing_subscription_for_unlinked_txns():
+    already_linked = FakeTxn(date(2024, 1, 1), 15.99, subscription_id=7)
+    new_txn = FakeTxn(date(2024, 2, 1), 45.00, subscription_id=None)
+    txns = [already_linked, new_txn]
+
+    resolved_id, unlinked = resolve_group_links(txns, existing_subscription_id=7)
+
+    assert resolved_id == 7
+    assert unlinked == [new_txn]

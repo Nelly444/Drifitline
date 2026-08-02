@@ -1,9 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import clustering, dashboard, forecasting, plaid
+from app.services.scheduler import create_scheduler
+from app.ws import router as ws
 
-app = FastAPI(title="Driftline")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    scheduler = create_scheduler()
+    scheduler.start()
+    yield
+    scheduler.shutdown()
+
+
+app = FastAPI(title="Driftline", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +29,7 @@ app.include_router(plaid.router)
 app.include_router(clustering.router)
 app.include_router(forecasting.router)
 app.include_router(dashboard.router)
+app.include_router(ws.router)
 
 
 @app.get("/health")

@@ -34,12 +34,23 @@ def score_subscription_history(sorted_txns: list) -> tuple[float, date]:
     return round(forecast_next_amount, 2), expected_next_date(full_dates)
 
 
+def newly_flagged_since(before_by_id: dict[int, bool], txns: list) -> list:
+    """
+    Transactions that are drift-flagged now but weren't (or didn't exist) before
+    this scoring pass - i.e. what actually changed in this run, not the full set
+    of currently-flagged transactions. Used to avoid re-broadcasting the same
+    alert on every poll cycle.
+    """
+    return [t for t in txns if t.is_drift and not before_by_id.get(t.id, False)]
+
+
 async def run_scoring(db: AsyncSession) -> dict:
     sub_result = await db.execute(select(Subscription))
     subscriptions = list(sub_result.scalars().all())
 
     transactions_scored = 0
     flagged_as_drift = 0
+    newly_flagged: list = []
 
     for subscription in subscriptions:
         txn_result = await db.execute(
@@ -51,9 +62,13 @@ async def run_scoring(db: AsyncSession) -> dict:
         if len(txns) < MIN_HISTORY + 1:
             continue
 
+        before_by_id = {t.id: t.is_drift for t in txns}
+
         forecast_next_amount, forecast_date = score_subscription_history(txns)
         subscription.forecast_amount = forecast_next_amount
         subscription.forecast_date = forecast_date
+
+        newly_flagged.extend(newly_flagged_since(before_by_id, txns))
 
         for txn in txns[MIN_HISTORY:]:
             transactions_scored += 1
@@ -64,4 +79,5 @@ async def run_scoring(db: AsyncSession) -> dict:
     return {
         "transactions_scored": transactions_scored,
         "flagged_as_drift": flagged_as_drift,
+        "newly_flagged": newly_flagged,
     }

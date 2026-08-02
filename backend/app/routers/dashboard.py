@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.models import Merchant, Subscription, Transaction
+from app.services.serializers import serialize_transaction
 
 router = APIRouter(tags=["dashboard"])
 
@@ -58,15 +59,7 @@ async def list_transactions(flagged_only: bool = False, db: AsyncSession = Depen
     merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
 
     return [
-        {
-            "id": t.id,
-            "merchant_name": merchants_by_id[t.merchant_id].normalized_name,
-            "amount": float(t.amount),
-            "posted_date": t.posted_date.isoformat(),
-            "expected_amount": float(t.expected_amount) if t.expected_amount is not None else None,
-            "deviation_pct": t.deviation_pct,
-            "is_drift": t.is_drift,
-        }
+        serialize_transaction(t, merchants_by_id[t.merchant_id].normalized_name)
         for t in transactions
     ]
 

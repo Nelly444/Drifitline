@@ -29,6 +29,22 @@ def build_group_features(sorted_txns: list[Transaction]) -> np.ndarray:
     return np.array(list(zip(amounts, day_intervals)))
 
 
+def resolve_group_links(sorted_txns: list, existing_subscription_id: int | None) -> tuple:
+    """
+    If a Subscription already exists for this merchant, reuse it for every
+    not-yet-linked transaction instead of re-running DBSCAN. Once a subscription
+    is established, a price change is drift to be scored, not noise to be
+    discarded - and re-running DBSCAN from scratch on a scheduler would both
+    re-litigate cluster membership unstably and create a duplicate Subscription
+    every run. Returns (None, []) if there's no existing subscription yet,
+    telling the caller to fall back to DBSCAN discovery as usual.
+    """
+    if existing_subscription_id is None:
+        return None, []
+    unlinked = [t for t in sorted_txns if t.subscription_id is None]
+    return existing_subscription_id, unlinked
+
+
 async def run_clustering(db: AsyncSession) -> dict:
     txn_result = await db.execute(select(Transaction))
     all_txns = list(txn_result.scalars().all())
@@ -44,6 +60,9 @@ async def run_clustering(db: AsyncSession) -> dict:
 
     raw_name_to_merchant = {m.raw_name: m for m in merchants}
 
+    sub_result = await db.execute(select(Subscription))
+    subscription_id_by_merchant_id = {s.merchant_id: s.id for s in sub_result.scalars().all()}
+
     groups: dict[str, list[Transaction]] = defaultdict(list)
     for txn in all_txns:
         normalized_name = merchants_by_id[txn.merchant_id].normalized_name
@@ -54,16 +73,30 @@ async def run_clustering(db: AsyncSession) -> dict:
         for name, txns in groups.items()
         if len(txns) >= MIN_GROUP_SIZE
     }
-    group_features = {name: build_group_features(txns) for name, txns in eligible_groups.items()}
 
     subscriptions_created = 0
     transactions_linked = 0
+    discovery_groups: dict[str, list[Transaction]] = {}
+
+    for name, sorted_txns in eligible_groups.items():
+        canonical_merchant = raw_name_to_merchant[name]
+        existing_subscription_id = subscription_id_by_merchant_id.get(canonical_merchant.id)
+        resolved_id, unlinked_txns = resolve_group_links(sorted_txns, existing_subscription_id)
+
+        if resolved_id is not None:
+            for txn in unlinked_txns:
+                txn.subscription_id = resolved_id
+                transactions_linked += 1
+        else:
+            discovery_groups[name] = sorted_txns
+
+    group_features = {name: build_group_features(txns) for name, txns in discovery_groups.items()}
 
     if group_features:
         scaler = StandardScaler()
         scaler.fit(np.vstack(list(group_features.values())))
 
-        for name, sorted_txns in eligible_groups.items():
+        for name, sorted_txns in discovery_groups.items():
             scaled = scaler.transform(group_features[name])
             labels = DBSCAN(eps=EPS, min_samples=MIN_SAMPLES).fit_predict(scaled)
 

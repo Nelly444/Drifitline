@@ -1,10 +1,11 @@
 from datetime import date, timedelta
 
-from app.services.scoring import MIN_HISTORY, score_subscription_history
+from app.services.scoring import MIN_HISTORY, newly_flagged_since, score_subscription_history
 
 
 class FakeTxn:
-    def __init__(self, posted_date, amount):
+    def __init__(self, posted_date, amount, id=None):
+        self.id = id
         self.posted_date = posted_date
         self.amount = amount
         self.expected_amount = None
@@ -44,3 +45,39 @@ def test_returns_sane_forward_forecast():
 
     assert forecast_next_amount == 15.99
     assert forecast_date > txns[-1].posted_date
+
+
+def test_newly_flagged_since_includes_false_to_true_transition():
+    txns = [FakeTxn(date(2024, 1, 1), 45.00, id=1)]
+    txns[0].is_drift = True
+
+    result = newly_flagged_since({1: False}, txns)
+
+    assert result == [txns[0]]
+
+
+def test_newly_flagged_since_excludes_already_flagged():
+    txns = [FakeTxn(date(2024, 1, 1), 45.00, id=1)]
+    txns[0].is_drift = True
+
+    result = newly_flagged_since({1: True}, txns)
+
+    assert result == []
+
+
+def test_newly_flagged_since_includes_transaction_absent_from_before_snapshot():
+    txns = [FakeTxn(date(2024, 1, 1), 45.00, id=99)]
+    txns[0].is_drift = True
+
+    result = newly_flagged_since({}, txns)
+
+    assert result == [txns[0]]
+
+
+def test_newly_flagged_since_excludes_non_drift_transactions():
+    txns = [FakeTxn(date(2024, 1, 1), 15.99, id=1)]
+    txns[0].is_drift = False
+
+    result = newly_flagged_since({1: False}, txns)
+
+    assert result == []
