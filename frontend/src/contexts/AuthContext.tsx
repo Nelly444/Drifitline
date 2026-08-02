@@ -1,8 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { login as loginRequest, register as registerRequest, setUnauthorizedHandler, TOKEN_STORAGE_KEY } from "../lib/api";
+import {
+  fetchCurrentUser,
+  login as loginRequest,
+  register as registerRequest,
+  setUnauthorizedHandler,
+  TOKEN_STORAGE_KEY,
+} from "../lib/api";
 
 interface AuthContextValue {
   token: string | null;
+  email: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -12,6 +19,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (token) {
@@ -19,6 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
     }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setEmail(null);
+      return;
+    }
+    fetchCurrentUser()
+      .then((user) => setEmail(user.email))
+      .catch(() => setEmail(null));
   }, [token]);
 
   useEffect(() => {
@@ -39,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
   }
 
-  return <AuthContext.Provider value={{ token, login, register, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ token, email, login, register, logout }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

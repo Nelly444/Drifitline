@@ -16,12 +16,12 @@ import { Subscriptions } from "./pages/Subscriptions";
 function ShellContent({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { email, logout } = useAuth();
   const { status: socketStatus } = useAlertSocketContext();
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 shrink-0 flex-col bg-signal-blue p-6">
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-signal-blue p-6">
         <p className="text-heading-sm font-serif font-medium text-white">Driftline</p>
         <div className="mt-2">
           <LiveStatusIndicator status={socketStatus} />
@@ -44,16 +44,30 @@ function ShellContent({ children }: { children: ReactNode }) {
             onClick={() => navigate("/settings")}
           />
         </nav>
-        <button
-          onClick={logout}
-          className="mt-auto text-left text-caption font-sans text-white/60 hover:text-white"
-        >
-          Log out
-        </button>
+
+        <div className="mt-auto flex flex-col gap-4 border-t border-white/15 pt-4">
+          {email && (
+            <button
+              onClick={() => navigate("/settings")}
+              className="flex items-center gap-3 rounded-input px-1 py-1 text-left hover:bg-white/5"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-body-sm font-sans font-medium text-white">
+                {email[0].toUpperCase()}
+              </span>
+              <span className="truncate text-body-sm font-sans text-white/80">{email}</span>
+            </button>
+          )}
+          <button
+            onClick={logout}
+            className="text-left text-caption font-sans text-white/60 hover:text-white"
+          >
+            Log out
+          </button>
+        </div>
       </aside>
 
       <main className="flex-1 px-6 py-10">
-        <div className="mx-auto max-w-[1040px]">{children}</div>
+        <div className="mx-auto max-w-[1200px]">{children}</div>
       </main>
     </div>
   );
