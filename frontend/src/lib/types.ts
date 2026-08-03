@@ -57,3 +57,8 @@ export interface SubscriptionDetail {
   forecast_date: string | null;
   transactions: TransactionRow[];
 }
+
+export interface AlertsTimelinePoint {
+  week_start: string;
+  count: number;
+}

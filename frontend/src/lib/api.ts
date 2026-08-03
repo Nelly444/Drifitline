@@ -1,6 +1,7 @@
 import axios from "axios";
 import { API_URL } from "./config";
 import type {
+  AlertsTimelinePoint,
   BreakdownEntry,
   CurrentUser,
   PlaidStatus,
@@ -82,6 +83,11 @@ export async function fetchStatsSummary(): Promise<StatsSummary> {
 
 export async function fetchStatsBreakdown(): Promise<BreakdownEntry[]> {
   const { data } = await client.get<BreakdownEntry[]>("/stats/breakdown");
+  return data;
+}
+
+export async function fetchAlertsTimeline(): Promise<AlertsTimelinePoint[]> {
+  const { data } = await client.get<AlertsTimelinePoint[]>("/stats/alerts-timeline");
   return data;
 }
 

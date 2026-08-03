@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AlertFeedRow } from "../components/AlertFeedRow";
+import { AlertsTimelineChart } from "../components/AlertsTimelineChart";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SpendBreakdownChart } from "../components/SpendBreakdownChart";
@@ -7,13 +8,21 @@ import { StatSummaryCard } from "../components/StatSummaryCard";
 import { TrendChart } from "../components/TrendChart";
 import { UpcomingChargesCard } from "../components/UpcomingChargesCard";
 import { useAlertSocketContext } from "../contexts/AlertSocketContext";
-import { connectSandboxAccount, fetchStatsBreakdown, fetchStatsSummary, fetchSubscriptions, fetchTransactions } from "../lib/api";
-import type { BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
+import {
+  connectSandboxAccount,
+  fetchAlertsTimeline,
+  fetchStatsBreakdown,
+  fetchStatsSummary,
+  fetchSubscriptions,
+  fetchTransactions,
+} from "../lib/api";
+import type { AlertsTimelinePoint, BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
 
 export function Dashboard() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionSummary[] | null>(null);
   const [stats, setStats] = useState<StatsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<BreakdownEntry[] | null>(null);
+  const [alertsTimeline, setAlertsTimeline] = useState<AlertsTimelinePoint[] | null>(null);
   const [alerts, setAlerts] = useState<TransactionRow[] | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -26,6 +35,7 @@ export function Dashboard() {
       fetchSubscriptions().then(setSubscriptions),
       fetchStatsSummary().then(setStats),
       fetchStatsBreakdown().then(setBreakdown),
+      fetchAlertsTimeline().then(setAlertsTimeline),
       fetchTransactions(true).then(setAlerts),
     ]).catch(() => {
       setLoadError("Couldn't load your dashboard. Check your connection and try again.");
@@ -84,7 +94,7 @@ export function Dashboard() {
     );
   }
 
-  if (subscriptions === null || stats === null || breakdown === null || alerts === null) {
+  if (subscriptions === null || stats === null || breakdown === null || alertsTimeline === null || alerts === null) {
     return null;
   }
 
@@ -115,6 +125,8 @@ export function Dashboard() {
         <TrendChart data={stats.sparkline} />
         <SpendBreakdownChart data={breakdown} />
       </div>
+
+      <AlertsTimelineChart data={alertsTimeline} />
 
       <UpcomingChargesCard subscriptions={subscriptions} />
 

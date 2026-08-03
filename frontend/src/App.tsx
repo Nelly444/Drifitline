@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { DriftRiskIndicator } from "./components/DriftRiskIndicator";
 import { LiveStatusIndicator } from "./components/LiveStatusIndicator";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SidebarNavItem } from "./components/SidebarNavItem";
@@ -44,6 +45,10 @@ function ShellContent({ children }: { children: ReactNode }) {
             onClick={() => navigate("/settings")}
           />
         </nav>
+
+        <div className="mt-8">
+          <DriftRiskIndicator />
+        </div>
 
         <div className="mt-auto flex flex-col gap-4 border-t border-white/15 pt-4">
           {email && (

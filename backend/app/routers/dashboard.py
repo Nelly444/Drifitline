@@ -201,6 +201,36 @@ async def stats_summary(db: AsyncSession = Depends(get_db), user: User = Depends
     }
 
 
+@router.get("/stats/alerts-timeline")
+async def alerts_timeline(db: AsyncSession = Depends(get_db), user: User = Depends(current_active_user)):
+    plaid_item_ids = await plaid_item_ids_for_user(db, user.id)
+
+    today = date.today()
+    twelve_weeks_ago = today - timedelta(weeks=12)
+    window_start = twelve_weeks_ago - timedelta(days=twelve_weeks_ago.weekday())
+
+    weekly_counts: dict[date, int] = {}
+    if plaid_item_ids:
+        flagged_result = await db.execute(
+            select(Transaction).where(
+                Transaction.plaid_item_id.in_(plaid_item_ids),
+                Transaction.is_drift.is_(True),
+                Transaction.posted_date >= window_start,
+            )
+        )
+        for t in flagged_result.scalars().all():
+            week_start = t.posted_date - timedelta(days=t.posted_date.weekday())
+            weekly_counts[week_start] = weekly_counts.get(week_start, 0) + 1
+
+    timeline = []
+    week = window_start
+    while week <= today:
+        timeline.append({"week_start": week.isoformat(), "count": weekly_counts.get(week, 0)})
+        week += timedelta(weeks=1)
+
+    return timeline
+
+
 @router.get("/stats/breakdown")
 async def stats_breakdown(db: AsyncSession = Depends(get_db), user: User = Depends(current_active_user)):
     plaid_item_ids = await plaid_item_ids_for_user(db, user.id)
