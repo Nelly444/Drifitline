@@ -6,6 +6,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SidebarNavItem } from "./components/SidebarNavItem";
 import { AlertSocketProvider, useAlertSocketContext } from "./contexts/AlertSocketContext";
 import { useAuth } from "./contexts/AuthContext";
+import { Alerts } from "./pages/Alerts";
 import { Dashboard } from "./pages/Dashboard";
 import { History } from "./pages/History";
 import { Login } from "./pages/Login";
@@ -33,6 +34,11 @@ function ShellContent({ children }: { children: ReactNode }) {
             label="Subscriptions"
             active={location.pathname.startsWith("/subscriptions")}
             onClick={() => navigate("/subscriptions")}
+          />
+          <SidebarNavItem
+            label="Alerts"
+            active={location.pathname === "/alerts"}
+            onClick={() => navigate("/alerts")}
           />
           <SidebarNavItem
             label="History"
@@ -118,6 +124,16 @@ function App() {
           <ProtectedRoute>
             <Shell>
               <SubscriptionDetail />
+            </Shell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/alerts"
+        element={
+          <ProtectedRoute>
+            <Shell>
+              <Alerts />
             </Shell>
           </ProtectedRoute>
         }

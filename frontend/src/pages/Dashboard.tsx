@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AlertFeedRow } from "../components/AlertFeedRow";
 import { AlertsTimelineChart } from "../components/AlertsTimelineChart";
 import { EmptyState } from "../components/EmptyState";
@@ -19,6 +20,7 @@ import {
 import type { AlertsTimelinePoint, BreakdownEntry, StatsSummary, SubscriptionSummary, TransactionRow } from "../lib/types";
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [subscriptions, setSubscriptions] = useState<SubscriptionSummary[] | null>(null);
   const [stats, setStats] = useState<StatsSummary | null>(null);
   const [breakdown, setBreakdown] = useState<BreakdownEntry[] | null>(null);
@@ -132,9 +134,19 @@ export function Dashboard() {
 
       {alerts.length > 0 && (
         <div className="rounded-card border border-hairline bg-surface p-6">
-          <h2 className="text-heading-sm font-serif font-medium text-ink">Alerts</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-heading-sm font-serif font-medium text-ink">Alerts</h2>
+            {alerts.length > 5 && (
+              <button
+                onClick={() => navigate("/alerts")}
+                className="text-caption font-sans text-signal-blue hover:underline"
+              >
+                View all alerts →
+              </button>
+            )}
+          </div>
           <div className="mt-4">
-            {alerts.map((txn) => (
+            {alerts.slice(0, 5).map((txn) => (
               <AlertFeedRow key={txn.id} transaction={txn} />
             ))}
           </div>
