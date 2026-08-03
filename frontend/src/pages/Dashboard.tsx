@@ -53,11 +53,6 @@ export function Dashboard() {
     setConnectError(null);
     try {
       await connectSandboxAccount();
-      // Plaid's sandbox data isn't always ready the instant an item is linked,
-      // so the very first sync/cluster/forecast pass right after connecting can
-      // legitimately come back empty - the background scheduler retries this
-      // tenant automatically, so poll until subscriptions actually show up
-      // instead of leaving the user stuck on "Connecting..." forever.
       await waitForSubscriptions();
     } catch {
       setConnectError("Couldn't connect your account. Please try again.");
@@ -75,8 +70,6 @@ export function Dashboard() {
       }
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
-    // Didn't show up within the poll window - the scheduler will still pick it
-    // up in the background, and a manual refresh will pick up the result.
     refetchAll();
   }
 

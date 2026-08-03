@@ -7,19 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Subscription, Transaction
 from app.services.forecasting import expected_next_date, forecast_amount, score
 
-# Need at least 2 prior points to compute a std-dev, so the first 2 transactions in a
-# subscription's history are left unscored (same spirit as clustering's first-point
-# interval imputation, but here there's no sane value to impute for a forecast).
 MIN_HISTORY = 2
 
 
 def score_subscription_history(sorted_txns: list) -> tuple[float, date]:
-    """
-    sorted_txns must already be sorted by posted_date ascending, and expose mutable
-    .amount/.posted_date/.expected_amount/.deviation_pct/.is_drift attributes. Mutates
-    each scoreable transaction in place. Returns the subscription-level forward forecast
-    (amount, next_date) computed from the full history.
-    """
     for i in range(MIN_HISTORY, len(sorted_txns)):
         history = [float(t.amount) for t in sorted_txns[:i]]
         expected, std_used = forecast_amount(history)
@@ -36,12 +27,6 @@ def score_subscription_history(sorted_txns: list) -> tuple[float, date]:
 
 
 def newly_flagged_since(before_by_id: dict[int, bool], txns: list) -> list:
-    """
-    Transactions that are drift-flagged now but weren't (or didn't exist) before
-    this scoring pass - i.e. what actually changed in this run, not the full set
-    of currently-flagged transactions. Used to avoid re-broadcasting the same
-    alert on every poll cycle.
-    """
     return [t for t in txns if t.is_drift and not before_by_id.get(t.id, False)]
 
 
@@ -53,9 +38,6 @@ async def run_scoring(db: AsyncSession, plaid_item_ids: list[int]) -> dict:
     flagged_as_drift = 0
     newly_flagged: list = []
 
-    # One query for every subscription's transaction history instead of one
-    # query per subscription - this runs on every scheduler tick for every
-    # tenant, so the per-subscription round trips add up fast.
     sub_ids = [s.id for s in subscriptions]
     txns_by_sub_id: dict[int, list] = defaultdict(list)
     if sub_ids:

@@ -17,10 +17,6 @@ export function DriftRiskIndicator() {
   useEffect(() => {
     let cancelled = false;
 
-    // The sidebar mounts as soon as the user is signed in, often before an
-    // account is connected or before the scheduler's first pipeline pass has
-    // populated subscriptions - poll a few times so the indicator appears as
-    // soon as real data shows up instead of locking in at "no subscriptions".
     async function pollUntilPopulated(maxAttempts = 8, delayMs = 4000) {
       for (let attempt = 0; attempt < maxAttempts && !cancelled; attempt++) {
         const count = await refresh().catch(() => 0);
@@ -36,9 +32,6 @@ export function DriftRiskIndicator() {
   }, []);
 
   useEffect(() => {
-    // A live alert means real data now exists - refetch fully (not just
-    // increment) so both counts stay accurate even if this fires before the
-    // initial poll above has resolved.
     return subscribe(() => {
       refresh().catch(() => {});
     });

@@ -15,7 +15,7 @@ def test_forecast_amount_uses_mean_below_ets_threshold():
     assert len(history) < ETS_MIN_HISTORY
     expected, std = forecast_amount(history)
     assert expected == 10.0
-    assert std > 0  # floored, not zero
+    assert std > 0
 
 
 def test_forecast_amount_uses_ets_above_threshold():
@@ -37,8 +37,6 @@ def test_score_does_not_flag_small_deviation():
 
 
 def test_score_zero_variance_history_does_not_explode():
-    # std_used should already be floored by forecast_amount before reaching score(),
-    # but score() itself should not divide by literal zero.
     deviation_pct, is_drift = score(actual_amount=20.0, expected_amount=15.99, std_used=0.32)
     assert is_drift is True
 

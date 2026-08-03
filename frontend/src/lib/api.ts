@@ -29,8 +29,6 @@ export function setUnauthorizedHandler(handler: () => void) {
   onUnauthorized = handler;
 }
 
-// Lets non-HTTP callers (the WebSocket, on an auth failure) trigger the same
-// logout flow as a 401 from a regular API call.
 export function triggerUnauthorized() {
   onUnauthorized?.();
 }

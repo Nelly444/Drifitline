@@ -22,9 +22,6 @@ export function Register() {
       navigate("/");
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 400) {
-        // fastapi-users returns `detail` as a plain string for
-        // REGISTER_USER_ALREADY_EXISTS, but as a {code, reason} object for
-        // REGISTER_INVALID_PASSWORD - handle both shapes.
         const detail = err.response.data?.detail;
         const code = typeof detail === "string" ? detail : detail?.code;
         if (code === "REGISTER_USER_ALREADY_EXISTS") {

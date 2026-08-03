@@ -11,14 +11,6 @@ def _strip_suffix(name: str) -> str:
 
 
 def normalize_merchants(raw_names: list[str], threshold: float = 87.0) -> dict[str, str]:
-    """
-    Groups messy merchant name variants (e.g. "NETFLIX INC" / "NETF*SUBSCRIPTION")
-    into one canonical name per group, via greedy rapidfuzz WRatio matching on
-    suffix-stripped names. Known limitation: generic/short merchant strings (e.g.
-    "FOOD", "CASH") can false-positive match onto an unrelated real merchant that
-    happens to share the substring - there's no signal here (like an MCC code) to
-    disambiguate that, so it's an accepted approximation, not solved.
-    """
     counts = Counter(raw_names)
     unique_names = list(counts.keys())
 

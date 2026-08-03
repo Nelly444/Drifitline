@@ -3,22 +3,10 @@ from datetime import date, timedelta
 import numpy as np
 from statsmodels.tsa.holtwinters import SimpleExpSmoothing
 
-# A perfectly flat amount history (extremely common - e.g. Netflix always $15.99) gives
-# statsmodels zero SSE, which trips numpy floating-point warnings in its own AIC/BIC
-# bookkeeping. These are numpy FPE warnings (governed by np.seterr, not Python's
-# `warnings` module, and a context-scoped np.errstate around just the .fit() call was
-# unreliable here) and don't affect the point forecast itself.
 np.seterr(divide="ignore", invalid="ignore")
 
-# Roadmap's own sanctioned fallback: ETS is overkill below this many points, use the mean.
 ETS_MIN_HISTORY = 5
-
-# ~95% one-sided; revisited against synthetic_eval.py's precision/recall, not re-derisked
-# from scratch the way DBSCAN's eps was, since z-score thresholds are a standard convention.
 Z_THRESHOLD = 2.0
-
-# Floors std at 2% of the expected amount so an identical-amount history (std=0) doesn't
-# produce a divide-by-zero/infinite z-score the moment a real deviation shows up.
 STD_FLOOR_PCT = 0.02
 
 

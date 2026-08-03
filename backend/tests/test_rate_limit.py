@@ -16,8 +16,6 @@ def _make_client(path: str, max_requests: int) -> TestClient:
 
 
 def setup_function():
-    # Module-level hit-tracking dict persists across tests in the same
-    # process; clear it so tests don't leak state into one another.
     rate_limit_module._hits.clear()
 
 
@@ -52,5 +50,4 @@ def test_limit_is_scoped_per_route_path():
     client = TestClient(app)
     assert client.get("/route-a").status_code == 200
     assert client.get("/route-a").status_code == 429
-    # A different route for the same client should have its own budget.
     assert client.get("/route-b").status_code == 200

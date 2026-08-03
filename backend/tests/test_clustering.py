@@ -15,12 +15,6 @@ class FakeTxn:
 
 
 def test_recurring_pattern_forms_one_cluster_separate_from_noise():
-    # Mirrors backend/scripts/derisk_dbscan.py's empirically-validated toy set: a
-    # single interleaved one-off charge contaminates its immediate neighbor's computed
-    # interval (a known limitation of "interval since previous txn"), so a handful of
-    # recurring points near the noise point can end up unclustered too - that's expected,
-    # not a bug. The bar here is: the big outlier is noise, and most of the recurring
-    # pattern still lands in one shared cluster.
     start = date(2024, 1, 1)
     recurring = [FakeTxn(start + timedelta(days=30 * i), 15.99) for i in range(20)]
     noise = [FakeTxn(start + timedelta(days=15), 250.00)]
@@ -46,7 +40,7 @@ def test_first_transaction_imputes_median_interval_not_zero():
         FakeTxn(date(2024, 3, 1), 10.0),
     ]
     features = build_group_features(txns)
-    assert features[0][1] == features[1][1]  # first point imputes the median gap
+    assert features[0][1] == features[1][1]
     assert features[0][1] > 0
 
 

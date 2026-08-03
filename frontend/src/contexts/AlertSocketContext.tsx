@@ -11,9 +11,6 @@ interface AlertSocketContextValue {
 
 const AlertSocketContext = createContext<AlertSocketContextValue | null>(null);
 
-// Shell and Dashboard both need live alerts (status indicator, alert feed) but
-// should share one WebSocket connection instead of each opening their own -
-// this provider owns the single connection and fans messages out to subscribers.
 export function AlertSocketProvider({ token, children }: { token: string | null; children: ReactNode }) {
   const listenersRef = useRef<Set<Listener>>(new Set());
 

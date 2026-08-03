@@ -1,5 +1,3 @@
-// Real brand colors for merchants that actually appear in our data - "the system's
-// actual source of color variety" per driftline-design.md, not invented decoration.
 const KNOWN_MERCHANT_COLORS: Record<string, string> = {
   "NETFLIX INC": "#E50914",
   "SPOTIFY INC": "#1DB954",
@@ -13,8 +11,6 @@ const KNOWN_MERCHANT_COLORS: Record<string, string> = {
   "VENMO INC": "#3D95CE",
 };
 
-// Deliberately avoids Signal Blue/Moss/Rust/Amber hexes - those four are reserved for
-// the functional action/status system, not merchant decoration.
 const FALLBACK_PALETTE = ["#7C5CFC", "#06B6D4", "#EC4899", "#F97316", "#8B5CF6", "#0D9488"];
 
 function hashString(value: string): number {

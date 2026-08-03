@@ -37,9 +37,6 @@ async def list_subscriptions(db: AsyncSession = Depends(get_db), user: User = De
     merchant_result = await db.execute(select(Merchant).where(Merchant.id.in_(merchant_ids)))
     merchants_by_id = {m.id: m for m in merchant_result.scalars().all()}
 
-    # One query for every subscription's transactions instead of one query per
-    # subscription - the first transaction seen per subscription_id is the latest,
-    # since the query is already ordered by posted_date desc.
     sub_ids = [sub.id for sub in subscriptions]
     latest_by_sub_id: dict[int, Transaction] = {}
     if sub_ids:
@@ -155,9 +152,6 @@ async def stats_summary(db: AsyncSession = Depends(get_db), user: User = Depends
     sub_result = await db.execute(select(Subscription).where(Subscription.plaid_item_id.in_(plaid_item_ids)))
     subscriptions = list(sub_result.scalars().all())
 
-    # Plaid's sandbox sign convention is inconsistent in our data (e.g. Sweetgreen
-    # forecasts at -810.00), so summing raw signed amounts would be misleading -
-    # abs() gives a sane "total recurring spend" figure regardless of sign.
     total_monthly_spend = sum(abs(float(s.forecast_amount)) for s in subscriptions if s.forecast_amount is not None)
     active_subscriptions_count = len(subscriptions)
 
@@ -183,9 +177,6 @@ async def stats_summary(db: AsyncSession = Depends(get_db), user: User = Depends
     for t in recent_txns:
         daily_totals[t.posted_date] = daily_totals.get(t.posted_date, 0.0) + abs(float(t.amount))
 
-    # Zero-fill every day in the window (not just days with transactions) so the
-    # sparkline is time-proportional - a category axis over sparse dates otherwise
-    # compresses multi-week gaps into the same visual width as single-day gaps.
     today = date.today()
     sparkline = []
     day = ninety_days_ago

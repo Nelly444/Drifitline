@@ -42,8 +42,6 @@ async def create_sandbox_item(db: AsyncSession, user_id: uuid.UUID) -> PlaidItem
         SandboxPublicTokenCreateRequest(
             institution_id="ins_109508",
             initial_products=[Products("transactions")],
-            # user_transactions_dynamic is Plaid's sandbox test user seeded with
-            # realistic history including recurring transactions.
             options=SandboxPublicTokenCreateRequestOptions(override_username="user_transactions_dynamic"),
         )
     )
@@ -68,9 +66,6 @@ async def _get_or_create_merchant(db: AsyncSession, raw_name: str) -> Merchant:
     if merchant is not None:
         return merchant
 
-    # Concurrent syncs (scheduler tick + manual /plaid/sync) can both miss the
-    # SELECT above for a brand-new merchant name; ON CONFLICT DO NOTHING makes
-    # the insert itself race-safe instead of relying on the check above.
     insert_stmt = (
         pg_insert(Merchant)
         .values(raw_name=raw_name)
@@ -112,10 +107,6 @@ async def sync_transactions(db: AsyncSession, plaid_item: PlaidItem) -> int:
         noisy_name = inject_noise(txn.merchant_name or txn.name)
         merchant = await _get_or_create_merchant(db, noisy_name)
 
-        # A concurrent sync for the same item (scheduler tick overlapping a
-        # manual /plaid/sync) can race past the "not exists" check above for
-        # the same transaction_id; the savepoint confines the resulting
-        # IntegrityError to this one row instead of aborting the whole batch.
         try:
             async with db.begin_nested():
                 db.add(

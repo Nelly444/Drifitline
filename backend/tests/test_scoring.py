@@ -29,7 +29,7 @@ def test_first_min_history_transactions_stay_unscored():
 def test_price_hike_gets_flagged_as_drift():
     start = date(2024, 1, 1)
     txns = [FakeTxn(start + timedelta(days=30 * i), 15.99) for i in range(6)]
-    txns.append(FakeTxn(start + timedelta(days=30 * 6), 45.00))  # a clear price hike
+    txns.append(FakeTxn(start + timedelta(days=30 * 6), 45.00))
 
     score_subscription_history(txns)
 

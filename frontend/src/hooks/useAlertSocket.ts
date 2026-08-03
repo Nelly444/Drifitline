@@ -6,8 +6,6 @@ import type { TransactionRow } from "../lib/types";
 export type SocketStatus = "connecting" | "connected" | "disconnected";
 
 const MAX_BACKOFF_MS = 10_000;
-// Server closes with 1008 (policy violation) specifically for an invalid/expired
-// token - anything else (network blip, server restart) should just reconnect.
 const AUTH_FAILURE_CLOSE_CODE = 1008;
 
 export function useAlertSocket(token: string | null, onAlert: (transaction: TransactionRow) => void): SocketStatus {
@@ -32,9 +30,6 @@ export function useAlertSocket(token: string | null, onAlert: (transaction: Tran
 
       socket.onopen = () => {
         backoffMs = 1000;
-        // Browsers can't set an Authorization header on a WS handshake, and a
-        // ?token= query param would leak into server/proxy access logs - send
-        // the token as the first message instead.
         socket?.send(JSON.stringify({ token }));
       };
 

@@ -48,8 +48,6 @@ async def disconnect(db: AsyncSession = Depends(get_db), user: User = Depends(cu
     if not plaid_item_ids:
         raise HTTPException(status_code=400, detail="No Plaid item linked.")
 
-    # Dependency order: transactions/subscriptions reference plaid_items, so
-    # they have to go first.
     await db.execute(delete(Transaction).where(Transaction.plaid_item_id.in_(plaid_item_ids)))
     await db.execute(delete(Subscription).where(Subscription.plaid_item_id.in_(plaid_item_ids)))
     await db.execute(delete(PlaidItem).where(PlaidItem.id.in_(plaid_item_ids)))

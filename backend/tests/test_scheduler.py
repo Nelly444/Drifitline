@@ -103,7 +103,7 @@ async def test_exception_from_run_pipeline_is_swallowed():
         patch("app.services.scheduler.run_pipeline", new=AsyncMock(side_effect=RuntimeError("boom"))),
         patch("app.services.scheduler.manager.broadcast_to_user", new=AsyncMock()) as mock_broadcast,
     ):
-        await scheduled_pipeline_run()  # must not raise
+        await scheduled_pipeline_run()
 
     mock_broadcast.assert_not_awaited()
     assert fake_db.rollback_count == 1
@@ -124,7 +124,7 @@ async def test_one_tenants_exception_does_not_abort_other_tenants_in_same_tick()
         patch("app.services.scheduler.run_pipeline", new=AsyncMock(side_effect=fake_run_pipeline)) as mock_pipeline,
         patch("app.services.scheduler.manager.broadcast_to_user", new=AsyncMock()) as mock_broadcast,
     ):
-        await scheduled_pipeline_run()  # must not raise
+        await scheduled_pipeline_run()
 
     assert mock_pipeline.await_count == 2
     assert fake_db.rollback_count == 1

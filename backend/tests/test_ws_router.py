@@ -20,10 +20,6 @@ class FakeUser:
 
 
 class FakeUserManager:
-    """Stands in for the real DB-backed UserManager so these tests don't need
-    a live Postgres connection - matches this repo's fakes-only test convention
-    and keeps this test runnable in CI (which has no database)."""
-
     def __init__(self, users_by_id):
         self.users_by_id = users_by_id
 

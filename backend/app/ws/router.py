@@ -17,10 +17,6 @@ async def alerts_socket(
     websocket: WebSocket,
     user_manager: UserManager = Depends(get_user_manager),
 ) -> None:
-    # Browsers don't send an Origin header on same-origin requests they
-    # control, but a cross-site page opening this socket would - reject those
-    # outright. Non-browser clients (tests, curl, other tools) send no Origin
-    # at all, so absence is allowed through to auth itself.
     origin = websocket.headers.get("origin")
     if origin is not None and origin != get_settings().FRONTEND_ORIGIN:
         await websocket.close(code=1008)
@@ -28,9 +24,6 @@ async def alerts_socket(
 
     await websocket.accept()
 
-    # Browsers can't set an Authorization header on a WS handshake, and a
-    # `?token=` query param would leak into server/proxy access logs - so the
-    # token travels as the client's first message after the connection opens.
     try:
         raw = await asyncio.wait_for(websocket.receive_text(), timeout=AUTH_TIMEOUT_SECONDS)
         token = json.loads(raw)["token"]

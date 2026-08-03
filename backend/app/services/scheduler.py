@@ -28,9 +28,6 @@ async def scheduled_pipeline_run() -> None:
                 for alert in pipeline_result["alerts"]:
                     await manager.broadcast_to_user(plaid_item.user_id, {"type": "new_alert", "transaction": alert})
             except Exception:
-                # One tenant's failure (transient Plaid hiccup, etc.) shouldn't
-                # stop the rest of this tick's tenants or future ticks - log,
-                # roll back so the session is usable again, and move on.
                 logger.exception("Pipeline run failed for plaid_item_id=%s", plaid_item.id)
                 await db.rollback()
 

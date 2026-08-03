@@ -11,13 +11,6 @@ def _client_key(request: Request) -> str:
 
 
 def rate_limit(max_requests: int, window_seconds: int = 60):
-    """Fixed-window rate limit dependency, keyed by client IP + route path.
-
-    In-memory only - resets on process restart and doesn't coordinate across
-    multiple worker processes. Fine for this app's single-instance deployment;
-    swap for a Redis-backed limiter if that changes.
-    """
-
     async def dependency(request: Request) -> None:
         key = f"{_client_key(request)}:{request.url.path}"
         now = time.monotonic()
