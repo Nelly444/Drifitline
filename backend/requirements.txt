@@ -13,9 +13,7 @@ rapidfuzz==3.14.5
 statsmodels==0.14.6
 pandas==3.0.5
 numpy==2.5.1
-matplotlib==3.11.1
 apscheduler==3.11.3
-sendgrid==6.12.5
 plaid-python==42.0.0
 pytest==9.1.1
 pytest-asyncio==1.4.0
