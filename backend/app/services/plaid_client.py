@@ -9,7 +9,6 @@ from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchan
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -60,26 +59,6 @@ async def create_sandbox_item(db: AsyncSession, user_id: uuid.UUID) -> PlaidItem
     return plaid_item
 
 
-async def _get_or_create_merchant(db: AsyncSession, raw_name: str) -> Merchant:
-    result = await db.execute(select(Merchant).where(Merchant.raw_name == raw_name))
-    merchant = result.scalar_one_or_none()
-    if merchant is not None:
-        return merchant
-
-    insert_stmt = (
-        pg_insert(Merchant)
-        .values(raw_name=raw_name)
-        .on_conflict_do_nothing(index_elements=["raw_name"])
-        .returning(Merchant.id)
-    )
-    inserted_id = (await db.execute(insert_stmt)).scalar_one_or_none()
-    if inserted_id is not None:
-        return await db.get(Merchant, inserted_id)
-
-    result = await db.execute(select(Merchant).where(Merchant.raw_name == raw_name))
-    return result.scalar_one()
-
-
 async def sync_transactions(db: AsyncSession, plaid_item: PlaidItem) -> int:
     client = _get_client()
     access_token = decrypt(plaid_item.access_token)
@@ -96,32 +75,51 @@ async def sync_transactions(db: AsyncSession, plaid_item: PlaidItem) -> int:
         if not response.has_more:
             break
 
-    ingested = 0
-    for txn in added:
-        existing = await db.execute(
-            select(Transaction).where(Transaction.plaid_transaction_id == txn.transaction_id)
+    if not added:
+        return 0
+
+    transaction_ids = [txn.transaction_id for txn in added]
+    existing_result = await db.execute(
+        select(Transaction.plaid_transaction_id).where(Transaction.plaid_transaction_id.in_(transaction_ids))
+    )
+    existing_ids = set(existing_result.scalars().all())
+    new_txns = [txn for txn in added if txn.transaction_id not in existing_ids]
+    if not new_txns:
+        return 0
+
+    noisy_name_by_txn_id = {txn.transaction_id: inject_noise(txn.merchant_name or txn.name) for txn in new_txns}
+    unique_names = set(noisy_name_by_txn_id.values())
+
+    merchant_result = await db.execute(select(Merchant).where(Merchant.raw_name.in_(unique_names)))
+    merchant_by_name = {m.raw_name: m for m in merchant_result.scalars().all()}
+
+    missing_names = unique_names - merchant_by_name.keys()
+    if missing_names:
+        await db.execute(
+            pg_insert(Merchant)
+            .values([{"raw_name": name} for name in missing_names])
+            .on_conflict_do_nothing(index_elements=["raw_name"])
         )
-        if existing.scalar_one_or_none() is not None:
-            continue
+        merchant_result = await db.execute(select(Merchant).where(Merchant.raw_name.in_(unique_names)))
+        merchant_by_name = {m.raw_name: m for m in merchant_result.scalars().all()}
 
-        noisy_name = inject_noise(txn.merchant_name or txn.name)
-        merchant = await _get_or_create_merchant(db, noisy_name)
-
-        try:
-            async with db.begin_nested():
-                db.add(
-                    Transaction(
-                        plaid_transaction_id=txn.transaction_id,
-                        merchant_id=merchant.id,
-                        plaid_item_id=plaid_item.id,
-                        amount=txn.amount,
-                        posted_date=txn.date,
-                    )
-                )
-                await db.flush()
-        except IntegrityError:
-            continue
-        ingested += 1
-
+    insert_stmt = (
+        pg_insert(Transaction)
+        .values(
+            [
+                {
+                    "plaid_transaction_id": txn.transaction_id,
+                    "merchant_id": merchant_by_name[noisy_name_by_txn_id[txn.transaction_id]].id,
+                    "plaid_item_id": plaid_item.id,
+                    "amount": txn.amount,
+                    "posted_date": txn.date,
+                }
+                for txn in new_txns
+            ]
+        )
+        .on_conflict_do_nothing(index_elements=["plaid_transaction_id"])
+        .returning(Transaction.id)
+    )
+    inserted_ids = (await db.execute(insert_stmt)).scalars().all()
     await db.commit()
-    return ingested
+    return len(inserted_ids)
