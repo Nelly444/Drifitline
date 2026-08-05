@@ -6,8 +6,6 @@ Connect a bank account and Driftline finds every recurring subscription hiding i
 
 ![Driftline dashboard](docs/dashboard.png)
 
-Live demo: _coming soon_
-
 ## What it does
 Driftline ingests real transaction data (via Plaid) and does three things a spreadsheet can't: it groups messy, inconsistently-named recurring charges into one subscription per merchant, forecasts what each subscription should cost next, and flags any charge that deviates from that forecast — in real time, over a live alert feed, not just after the fact.
 
