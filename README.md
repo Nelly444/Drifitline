@@ -40,5 +40,52 @@ A scheduled job runs every 20 seconds per linked account: it pulls new transacti
 
 The frontend never talks to Plaid directly — only the FastAPI backend does, keeping Plaid credentials server-side and encrypted at rest. Every database query is scoped through the authenticated user's own linked accounts, so tenant isolation is enforced at the query layer, not just the API layer.
 
+## Project structure
+```
+backend/
+  app/
+    routers/       HTTP endpoints — thin, delegate to services
+    services/       clustering, forecasting, scoring, Plaid sync, encryption, rate limiting
+    models/         SQLAlchemy ORM models
+    ws/              WebSocket connection manager + auth handshake
+    auth.py          fastapi-users setup (JWT)
+    main.py          app assembly, CORS, router registration
+  alembic/           database migrations
+  tests/             pytest suite
+  scripts/           standalone evaluation/derisking scripts (synthetic_eval.py, derisk_dbscan.py)
+
+frontend/
+  src/
+    pages/           route-level views
+    components/      reusable UI pieces (charts, cards, form fields)
+    contexts/        auth + WebSocket React contexts
+    lib/              API client, types, config
+```
+
+## Getting started
+Requires Docker, Python 3.13, Node 18+, and a free [Plaid sandbox](https://dashboard.plaid.com) account.
+
+```bash
+git clone https://github.com/Nelly444/Drifitline.git && cd Drifitline
+docker compose up -d   # local Postgres on port 5434
+
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # fill in PLAID_CLIENT_ID/SECRET, JWT_SECRET, ENCRYPTION_KEY
+alembic upgrade head
+uvicorn app.main:app --reload
+
+# in a second terminal
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+`JWT_SECRET` can be any random string (e.g. `openssl rand -hex 32`). `ENCRYPTION_KEY` must be a valid Fernet key: `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+
+Run the backend test suite with `pytest -q` from `backend/`.
+
 ## Built by
 Nelson Supriyasilp
