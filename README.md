@@ -2,11 +2,11 @@
 
 https://drifitline.vercel.app
 
+Note: the backend is hosted on Render's free tier and may take 30-60 seconds to spin up on first load.
+
 Connect a bank account and Driftline finds every recurring subscription hiding in your transaction history — even the ones you forgot about — then tells you the moment one changes price.
 
 ![Driftline dashboard](docs/dashboard.png)
-
-Live demo: _coming soon_
 
 ## What it does
 Driftline ingests real transaction data (via Plaid) and does three things a spreadsheet can't: it groups messy, inconsistently-named recurring charges into one subscription per merchant, forecasts what each subscription should cost next, and flags any charge that deviates from that forecast — in real time, over a live alert feed, not just after the fact.
