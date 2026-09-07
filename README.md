@@ -62,30 +62,5 @@ frontend/
     lib/              API client, types, config
 ```
 
-## Getting started
-Requires Docker, Python 3.13, Node 18+, and a free [Plaid sandbox](https://dashboard.plaid.com) account.
-
-```bash
-git clone https://github.com/Nelly444/Drifitline.git && cd Drifitline
-docker compose up -d   # local Postgres on port 5434
-
-cd backend
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # fill in PLAID_CLIENT_ID/SECRET, JWT_SECRET, ENCRYPTION_KEY
-alembic upgrade head
-uvicorn app.main:app --reload
-
-# in a second terminal
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
-```
-
-`JWT_SECRET` can be any random string (e.g. `openssl rand -hex 32`). `ENCRYPTION_KEY` must be a valid Fernet key: `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
-
-Run the backend test suite with `pytest -q` from `backend/`.
-
 ## Built by
 Nelson Supriyasilp
